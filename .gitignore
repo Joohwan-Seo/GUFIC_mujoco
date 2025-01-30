@@ -1,0 +1,4 @@
+# git ignore file
+# ignore all files in pycache
+__pycache__/
+utils/__pycache__/

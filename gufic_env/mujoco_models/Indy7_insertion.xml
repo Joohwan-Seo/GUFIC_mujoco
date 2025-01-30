@@ -56,40 +56,40 @@
         <body name="indy_link0" pos="0 0 0" euler = "0 0 0"> 
             <inertial pos="0.001045240000000 -0.000003790000000 -0.015046150000000" mass="1.59306955" fullinertia="+0.00572623 +0.00558959 +0.00966674 +0.00000251 -0.00011380 -0.00000014" />
             <!-- <inertial pos="0.00104524 -3.79e-06 -0.0150461" quat="0.488076 0.497353 -0.502389 0.511885" mass="1.59307" diaginertia="0.00967002 0.00572299 0.00558954"/> -->
-            <geom type="mesh" mesh="Indy7_0" contype="0" conaffinity="0" group="0" /> 
+            <geom type="mesh" mesh="Indy7_0" contype="0" conaffinity="0" group="0" rgba = "0.584 0.584 0.584 1" /> 
 
             <body name="indy_link1" pos="0 0 0.0775" euler = "0 0 0"> 
                 <inertial pos="0 -0.0473238 0.193496" quat="0.646983 -0.156312 0.175179 0.72546" mass="11.803" diaginertia="0.154273 0.154184 0.0347425"/>
 
                 <joint name="indy_joint1" range="-3.05432619099 3.05432619099" armature="4" frictionloss="0"/>
-                <geom type="mesh" mesh="Indy7_1"/> 
+                <geom type="mesh" mesh="Indy7_1" rgba = "0.737 0.737 0.768 1"/> 
 
                 <body name="indy_link2" pos="0 -0.109 0.222" quat="0.5 0.5 0.5 -0.5">  <!--quat="-0.5 -0.5 0.5 0.5"-->
                     <inertial pos="-0.252661 6.01e-06 0.0594623" quat="0.535651 0.461652 0.461734 0.535497" mass="7.99292" diaginertia="0.29363 0.286497 0.0306505"/>
                     <joint name="indy_joint2" range="-3.05432619099 3.05432619099" armature="4" frictionloss="0"/>
-                    <geom type="mesh" mesh="Indy7_2"/>
+                    <geom type="mesh" mesh="Indy7_2" rgba = "0.737 0.737 0.768 1"/>
 
                     <body name="indy_link3" pos="-0.45 0 -0.0305" euler = "0 0 0"> <!--quat="-0.5 -0.5 0.5 0.5"-->
                         <!-- <inertial pos="-0.15172139 0.00004441 -0.07319902" mass="2.99134127" fullinertia="+0.00450709 +0.03427124 +0.03427124 +0.00000743 -0.00185907 -0.00000141" />  -->
                         <inertial pos="-0.151721 4.441e-05 -0.073199" quat="0.490517 0.508363 -0.522312 -0.477652" mass="2.99134" diaginertia="0.0342713 0.0342015 0.0043907"/>
                         <joint name="indy_joint3" range="-3.05432619099 3.05432619099" armature="1" frictionloss="0"/>
-                        <geom type="mesh" mesh="Indy7_3"/>
+                        <geom type="mesh" mesh="Indy7_3" rgba = "0.737 0.737 0.768 1"/>
 
                         <body name="indy_link4" pos="-0.267 0 -0.075" quat="0.5 -0.5 -0.5 0.5">
                             <inertial pos="6.946e-05 -0.0722404 0.0745651" quat="0.584096 0.811684 -0.000311929 0.00081235" mass="2.12317" diaginertia="0.00672334 0.00662338 0.00236249"/>
 
                             <joint name="indy_joint4" range="-3.05432619099 3.05432619099" armature="1" frictionloss="0"/>
-                            <geom type="mesh" mesh="Indy7_4"/>
+                            <geom type="mesh" mesh="Indy7_4" rgba = "0.737 0.737 0.768 1"/>
 
                             <body name="indy_link5" pos="0 -0.114 0.083" quat="0.5 0.5 0.5 -0.5"> 
                                 <inertial pos="-0.0928619 6.474e-05 0.0657795" quat="0.464788 0.53361 0.528902 0.468503" mass="2.28865" diaginertia="0.00996598 0.00992026 0.00259951"/>
                                 <joint name="indy_joint5" range="-3.05432619099 3.05432619099" armature="0.8" frictionloss="0.0"/>
-                                <geom type="mesh" mesh="Indy7_5"/>
+                                <geom type="mesh" mesh="Indy7_5" rgba = "0.737 0.737 0.768 1"/>
 
                                 <body name="indy_link6" pos="-0.168 0 0.069" quat="0.5 -0.5 -0.5 0.5" >
                                     <inertial pos="0 -0.00048743 0.0306234" quat="0.00572522 0.707041 -0.00333531 0.707142" mass="0.400839" diaginertia="0.000596342 0.00044549 0.000435338"/>
                                     <joint name="indy_joint6" range="-3.05432619099 3.05432619099" armature="0.8" frictionloss="0.0"/>
-                                    <geom type="mesh" mesh="Indy7_6"/>
+                                    <geom type="mesh" mesh="Indy7_6" rgba = "0.737 0.737 0.768 1"/>
 
                                     <body name="last_link" pos="0.0 0 0.06" euler = "0 -0 0" >
                                         <inertial pos="0 -0.00048743 0.0306234" quat="0.00572522 0.707041 -0.00333531 0.707142" mass="1e-9" diaginertia="0.0 0.0 0.0"/> 
@@ -97,17 +97,17 @@
                                     </body>
 
                                     <body name = "ft_assembly" pos = "0.0 0.0 0.06">
-                                        <geom type="mesh" mesh="indy_coupling_ft_sensor"/>
+                                        <geom type="mesh" mesh="indy_coupling_ft_sensor" rgba = "0.584 0.584 0.584 1"/>
                                         <body name = "gripper_body" pos = "0.0 0.0 0.067">
                                             <geom type="mesh" mesh="indy_gripper_body" friction="0.3" contype='1' conaffinity='1' condim='6' solimp="0.99 0.99 0.001" solref="0.001 1" margin = "0.002"/>
                                             <body name = "gripper_finger1" pos = "-0.020 -0.0075 0.061">
                                                 <inertial pos = "0 0 0" euler = "0 0 0" mass = "0.01" diaginertia="0.001 0.001 0.001"/>
-                                                <geom type="mesh" mesh="indy7_gripper_finger1" friction = "0.3" contype='1' conaffinity='1' condim='6' solimp="0.99 0.99 0.001" solref="0.001 1" margin="0.002"/>
+                                                <geom type="mesh" mesh="indy7_gripper_finger1" friction = "0.3" contype='1' conaffinity='1' condim='6' solimp="0.99 0.99 0.001" solref="0.001 1" margin="0.002" rgba = "0.129 0.129 0.129 1"/>
                                                 <joint axis = "1 0 0" pos="0 0 0" name="jointf1" damping="3" range="-0.03 0.0" type="slide" />
                                             </body>
                                             <body name = "gripper_finger2" pos = "0.020 0.0075 0.061">
                                                 <inertial pos = "0 0 0" euler = "0 0 0" mass = "0.01" diaginertia="0.001 0.001 0.001"/>
-                                                <geom type="mesh" mesh="indy7_gripper_finger2" friction = "0.3" contype='1' conaffinity='1' condim='6' solimp="0.99 0.99 0.001" solref="0.001 1" margin="0.002"/>
+                                                <geom type="mesh" mesh="indy7_gripper_finger2" friction = "0.3" contype='1' conaffinity='1' condim='6' solimp="0.99 0.99 0.001" solref="0.001 1" margin="0.002" rgba = "0.129 0.129 0.129 1"/>
                                                 <joint axis = "1 0 0" pos="0 0 0" name="jointf2" damping="3" range="0.0 0.03" type="slide" />
                                             </body>
                                         </body>

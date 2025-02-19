@@ -297,8 +297,12 @@ class RobotEnv:
     def get_eV(self):
         return self.robot_state.get_body_ee_velocity()
     
-    def get_FT_value(self):
-        return -self.robot_state.get_ee_force()
+    def get_FT_value(self, return_derivative = False):
+        Fe, dFe = self.robot_state.get_ee_force()
+        if return_derivative:
+            return -Fe, -dFe
+        else:
+            return -Fe
 
     def geometric_impedance_control(self, gains):
         Jb = self.robot_state.get_body_jacobian()

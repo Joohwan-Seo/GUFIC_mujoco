@@ -40,7 +40,7 @@ class RobotState:
         dt = model.opt.timestep
         # print('dt:', dt)
         fs = 1 / dt
-        cutoff = 3 ## Default value is 50
+        cutoff = 2 ## Default value is 50
         self.fe = np.zeros(6)
         self.lp_filter = ButterLowPass(cutoff, fs, order=5)
         self.ft_body_name = "ft_assembly"
@@ -88,9 +88,11 @@ class RobotState:
         force_torque = np.concatenate([force, torque])
         # update robot state
         self.force_sensor_data = self.lp_filter(force_torque.reshape((-1, 6)))[0, :]
+        # print('low-pass signal states:', self.lp_filter.zi.shape)
+        # print(self.force_sensor_data - self.lp_filter.zi[0,:])
         # self.force_sensor_data = force_torque
 
-        return self.force_sensor_data
+        return self.force_sensor_data, self.lp_filter.zi[1,:]
     
     def transform_rot(self, fe, desired):
         pe, Re = self.get_pose()
@@ -101,7 +103,7 @@ class RobotState:
 
         return Mat.dot(fe)
     
-    def gauss_newton_IK(self, pd, Rd, init_q, step_size = 0.5, tol = 0.01, max_cnt = 500):
+    def gauss_newton_IK(self, pd, Rd, init_q, step_size = 0.4, tol = 0.001, max_cnt = 500):
         self.data.qpos = init_q
         p, R = self.get_pose()
         ep = (p - pd).reshape((-1,1))
@@ -141,8 +143,11 @@ class RobotState:
             error = np.vstack((ep, eR)) 
             step_cnt += 1
 
-        self.data.qpos[-1] = 0
-        self.data.qpos[-2] = 0
+        if self.model.nv == 8:
+            self.data.qpos[-1] = 0
+            self.data.qpos[-2] = 0
+        elif self.model.nv == 6:
+            pass
         mujoco.mj_forward(self.model, self.data) 
         print(f"Steps: {step_cnt}, error: {np.linalg.norm(error)}")
         print("q pos", self.data.qpos)
@@ -228,6 +233,9 @@ class RobotState:
         #     self.data.ctrl[:] = np.hstack((tau, [0, 0]))
 
         if self.robot_name == 'indy7':
-            self.data.ctrl[:] = np.hstack((tau, [-gripper, gripper]))
+            if self.model.nv == 8:
+                self.data.ctrl[:] = np.hstack((tau, [-gripper, gripper]))
+            elif self.model.nv == 6:
+                self.data.ctrl[:] = tau
         else:
             self.data.ctrl[:] = tau

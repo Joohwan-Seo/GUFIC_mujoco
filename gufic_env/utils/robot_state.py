@@ -40,7 +40,8 @@ class RobotState:
         dt = model.opt.timestep
         # print('dt:', dt)
         fs = 1 / dt
-        cutoff = 2 ## Default value is 50
+        # cutoff = 2 ## Default value is 50
+        cutoff = 5
         self.fe = np.zeros(6)
         self.lp_filter = ButterLowPass(cutoff, fs, order=5)
         self.ft_body_name = "ft_assembly"

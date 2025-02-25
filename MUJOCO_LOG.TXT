@@ -664,3 +664,69 @@ WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstabl
 Wed Jan  8 22:36:37 2025
 WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0020.
 
+Tue Feb 18 16:01:32 2025
+WARNING: mju_openResource: unknown file '/home/joohwan/research/GUFIC_mujoco/gic_env/mujoco_models/pih/square_pih_fanuc.xml'
+
+Tue Feb 18 16:03:11 2025
+WARNING: mju_openResource: unknown file '/home/joohwan/research/GUFIC_mujoco/gic_env/mujoco_models/pih/square_pih_fanuc.xml'
+
+Tue Feb 18 16:03:36 2025
+WARNING: mju_openResource: unknown file '/home/joohwan/research/GUFIC_mujoco/gic_env/mujoco_models/square_pih_fanuc.xml'
+
+Tue Feb 18 16:03:55 2025
+WARNING: mju_openResource: unknown file '/home/joohwan/research/GUFIC_mujoco//mujoco_models/square_pih_fanuc.xml'
+
+Tue Feb 18 16:04:00 2025
+WARNING: mju_openResource: unknown file '/home/joohwan/research/GUFIC_mujoco/mujoco_models/square_pih_fanuc.xml'
+
+Tue Feb 18 16:04:38 2025
+WARNING: mju_openResource: unknown file '/home/joohwan/research/GUFIC_mujoco/gufic_env/mujoco_models/scene.xml'
+
+Tue Feb 18 16:13:26 2025
+WARNING: mju_openResource: unknown file '/home/joohwan/research/GUFIC_mujoco/gufic_env/mujoco_models/../fanuc_sim/assets.xml'
+
+Tue Feb 18 16:13:43 2025
+WARNING: mju_openResource: unknown file '/home/joohwan/research/GUFIC_mujoco/gufic_env/mujoco_models/chain_peg_fanuc.xml'
+
+Tue Feb 18 16:14:56 2025
+WARNING: mju_openResource: unknown file '/home/joohwan/research/GUFIC_mujoco/gufic_env/mujoco_models/fanuc_sim//fanuc_sim/assets.xml'
+
+Tue Feb 18 17:01:21 2025
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.3340.
+
+Tue Feb 18 17:01:21 2025
+WARNING: Nan, Inf or huge value in QACC at DOF 0. The simulation is unstable. Time = 0.3350.
+
+Tue Feb 18 17:01:21 2025
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0430.
+
+Tue Feb 18 17:01:21 2025
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0120.
+
+Tue Feb 18 17:01:21 2025
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 1. The simulation is unstable. Time = 0.0190.
+
+Tue Feb 18 17:01:21 2025
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 1. The simulation is unstable. Time = 0.0080.
+
+Tue Feb 18 17:01:21 2025
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0020.
+
+Tue Feb 18 17:01:22 2025
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0060.
+
+Tue Feb 18 17:01:22 2025
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0230.
+
+Tue Feb 18 17:01:22 2025
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 1. The simulation is unstable. Time = 0.0230.
+
+Tue Feb 18 17:01:22 2025
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 3. The simulation is unstable. Time = 0.0380.
+
+Tue Feb 18 17:01:22 2025
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0080.
+
+Tue Feb 18 17:01:22 2025
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0150.
+

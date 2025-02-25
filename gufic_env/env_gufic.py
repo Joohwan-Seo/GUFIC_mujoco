@@ -7,6 +7,8 @@ import mujoco.viewer
 import numpy as np
 import time, csv, os, copy
 
+import pickle
+
 from gym import utils
 
 # import matplotlib.pyplot as plt
@@ -16,19 +18,18 @@ from gufic_env.utils.misc_func import vee_map, hat_map, rotmat_x
 
 import matplotlib.pyplot as plt
 
-
-
 class RobotEnv:
     def __init__(self, robot_name = 'indy7', max_time = 10, show_viewer = False, 
                  obs_type = 'pos', hole_ori = 'default', testing = False, reward_version = None, window_size = 1, 
                  use_ext_force = False, act_type = 'default', mixed_obs = False, hole_angle = 0.0, in_dist = True, fix_camera = False,
-                 tracking = None):
+                 tracking = None, gic_only = False):
         
         self.robot_name = robot_name
         print(self.robot_name)
         self.hole_ori = hole_ori
         self.testing = testing 
         self.tracking = tracking
+        self.gic_only = gic_only
 
 
         self.reward_version = reward_version
@@ -44,11 +45,11 @@ class RobotEnv:
             self.obs_is_Cart = True
         else:
             self.obs_is_Cart = False
-        print('=================================')
-        print('USING GEOMETRIC IMPEDANCE CONTROL')
-        print('=================================')
+        print('==============================================')
+        print('USING GEOMETRIC UNIFED FORCE IMPEDANCE CONTROL')
+        print('==============================================')
 
-
+        self.force_control_trigger = False
 
         #NOTE(JS) The determinant of the desired rotation matrix should be always 1.
         # (by the definition of the rotational matrix.)
@@ -67,7 +68,9 @@ class RobotEnv:
                             [1, 0, 0],
                             [0, 0, -1]])
         
-        self.z_init_offset = -0.1
+        self.z_init_offset = -0.03
+
+        self.contact_count = 0
 
         self.show_viewer = show_viewer
         self.load_xml()
@@ -75,7 +78,7 @@ class RobotEnv:
         self.obs_type = obs_type
         self.robot_state = RobotState(self.model, self.data, "end_effector", self.robot_name)
 
-        self.dt = 0.001
+        self.dt = self.model.opt.timestep
         self.max_iter = int(max_time/self.dt)
 
         self.time_step = 0
@@ -91,6 +94,43 @@ class RobotEnv:
 
         self.Kd = np.eye(6) * np.array([500, 500, 500, 500, 500, 500])
 
+        if self.tracking is None:
+            self.Kp = np.eye(3) * np.array([1500, 1500, 100])
+            self.KR = np.eye(3) * np.array([1500, 1500, 1500])
+            self.Kd = np.eye(6) * np.array([500, 500, 500, 500, 500, 500])
+
+            # Default Value
+            self.kp_force = 0.5
+            self.kd_force = 0.3
+            self.ki_force = 0.8
+
+            self.pd = np.array([0.50, 0.00, 0.12])
+
+            # self.kp_force = 0
+            # self.kd_force = 0
+            # self.ki_force = 0
+
+        elif self.tracking == 'circle' or 'line':
+            # self.Kp = np.eye(3) * np.array([2500, 2500, 300])
+            self.Kp = np.eye(3) * np.array([2500, 2500, 300])
+            self.KR = np.eye(3) * np.array([2000, 2000, 2000])
+            self.Kd = np.eye(6) * np.array([300, 300, 300, 300, 300, 300])
+
+            self.kp_force = 0.35
+            self.kd_force = 0.3
+            self.ki_force = 0.8
+
+            self.pd = np.array([0.50, 0.00, 0.12])
+
+        if self.gic_only == True:
+            if self.tracking is None:
+                self.Kp = np.eye(3) * np.array([1500, 1500, 1000])
+            elif self.tracking == 'circle' or 'line':
+                self.Kp = np.eye(3) * np.array([2500, 2500, 1000])
+            self.pd = np.array([0.50, 0.00, 0.12])
+            self.pd_default = self.pd
+
+
         ## For the force tracking
         self.e_force_prev = np.zeros((6,1))
         self.int_force_prev = np.zeros((6,1))
@@ -100,9 +140,7 @@ class RobotEnv:
         # self.kd_force = 0
         # self.ki_force = 0.6
 
-        self.kp_force = 1.0
-        self.kd_force = 0.25
-        self.ki_force = 1.5
+        
 
         ## For the energy tank
         self.T_f_low = 0.01
@@ -119,7 +157,7 @@ class RobotEnv:
         self.T_f = 0.5 * self.x_tf**2
         self.T_i = 0.5 * self.x_ti**2
 
-        self.d_max = 0.04
+        self.d_max = 0.05
         self.eR_norm_max = 0.05
 
         ####### Dummy for the printing
@@ -249,6 +287,8 @@ class RobotEnv:
         Fe_list = []
         Fd_list = []
 
+        pd_list = []
+
 
         for i in range(self.max_iter):
 
@@ -266,6 +306,7 @@ class RobotEnv:
             x_ti_list.append(self.x_ti)
             Fe_list.append(Fe)
             Fd_list.append(Fd)
+            pd_list.append(self.pd)
 
             # print(reward)
 
@@ -281,7 +322,7 @@ class RobotEnv:
 
             self.time_step = i
 
-        return p_list, R_list, x_tf_list, x_ti_list, Fe_list, Fd_list
+        return p_list, R_list, x_tf_list, x_ti_list, Fe_list, Fd_list, pd_list
     
     def update_desired_trajectory(self):
 
@@ -362,6 +403,18 @@ class RobotEnv:
             obs = eg.reshape((-1,))
 
         return obs
+    
+    def detect_contact(self):
+        Fe = self.get_FT_value()
+        contact_count_threshold = 50
+        print(self.contact_count)
+        if np.linalg.norm(Fe) > 12 and self.contact_count <= contact_count_threshold:
+            self.contact_count += 1
+        
+        if self.contact_count > contact_count_threshold:
+            return True
+        else:
+            return False
 
     
     def memorize(self,obs):
@@ -392,7 +445,20 @@ class RobotEnv:
             return -Fe
     
     def get_force_profile(self):
-        Fd = np.array([0, 0, 20, 0, 0, 0])
+
+        eg = self.get_eg()
+        ep = eg[:3,0]
+
+        # slowly increase the fz, with maximum value of 10, within 1 seconds
+        # max_timestep = 2500
+        # if self.time_step < max_timestep:
+        #     fz = 10 * self.time_step / max_timestep
+        # else:
+        #     fz = 10
+
+        fz = 10
+
+        Fd = np.array([0, 0, fz, 0, 0, 0])
         return Fd
 
     def geometric_unified_force_impedance_control(self):
@@ -428,11 +494,28 @@ class RobotEnv:
         de_force = -d_Fe
         int_force = self.int_force_prev + e_force * self.dt
 
-        F_f = - self.kp_force * e_force - self.kd_force * de_force - self.ki_force * int_force + Fd
+        int_force = np.clip(int_force, -8, 8)
+        # de_force = np.clip(de_force, -100, 100)
+
+        # if np.linalg.norm(Fe) > 5 and self.force_control_trigger == False:
+        #     self.force_control_trigger = True
+
+        # if self.force_control_trigger:
+        #     F_f = - self.kp_force * e_force - self.kd_force * de_force - self.ki_force * int_force + Fd
+        # else:
+        #     F_f = np.zeros((6,1))
+
+        F_f = - self.kp_force * e_force - self.kd_force * de_force - self.ki_force * int_force
+
+        # F_f = np.clip(F_f, -30, 30)
+
+
+        if self.gic_only == True:
+            F_f = np.zeros((6,1))
 
         #2.5 Apply shaping function to the force control input
-        f_f = Fd[:3].reshape((-1,))
-        m_f = Fd[3:].reshape((-1,))
+        f_d = Fd[:3].reshape((-1,))
+        m_d = Fd[3:].reshape((-1,))
 
         eg = self.get_eg()
 
@@ -443,24 +526,36 @@ class RobotEnv:
         rho_R = np.zeros((3,))
 
         if self.time_step % 100 == 0:
-            print(ep[2], f_f[2])
-            print(ep @ f_f)
+            # print(ep[2], f_d[2])
+            # print(ep @ f_d)
+            # print(self.force_control_trigger)
+            # print(np.linalg.norm(Fe[2]))
+            # print(F_f[2])
+            # print(x[2])
+            pass
 
-        if ep @ f_f <= 0:
+        if ep @ f_d <= 0:
             rho_p[:3] = 1
-        elif ep @ f_f > 0:
+        elif ep @ f_d > 0:
             for i in range(3):
-                if ep[i] >= 0 and np.abs(ep[i]) <= self.d_max:
+                # Default
+                # if ep[i] >= 0 and np.abs(ep[i]) <= self.d_max:
+                #     rho_p[i] = 0.5 * (1 + np.cos(np.pi * ep[i] / self.d_max))
+                # elif np.abs(f_f[i]) <= 0.05:
+                #     rho_p[i] = 0
+
+                # Try this
+                if np.abs(ep[i]) <= self.d_max:
                     rho_p[i] = 0.5 * (1 + np.cos(np.pi * ep[i] / self.d_max))
-                elif np.abs(f_f[i]) <= 0.05:
+                elif np.abs(f_d[i]) <= 0.05:
                     rho_p[i] = 0
         else:
             rho_p[:3] = 0
 
         eR_norm = np.linalg.norm(eR)
-        if eR @ m_f <= 0:
+        if eR @ m_d <= 0:
             rho_R[:3] = 1
-        elif eR @ m_f > 0:
+        elif eR @ m_d > 0:
             if eR_norm >= self.eR_norm_max:
                 rho_R[:3] = 0.5 * (1 + np.cos(np.pi * eR_norm / self.eR_norm_max))
         else:
@@ -529,10 +624,16 @@ class RobotEnv:
         Vd_star_mod = (gamma_i + alpha_i * (1 - gamma_i)) * Vd_star
         ev_mod = Vb - Vd_star_mod
 
+
         # Kd = np.sqrt(np.block([[Kp, np.zeros((3,3))],[np.zeros((3,3)), KR]])) * 10
         Kd = self.Kd
 
-        dx_ti = (beta_i / self.x_ti) * (gamma_i * inner_product_i + (ev_mod.T @ Kd @ ev_mod)[0,0]) \
+        energy_dissipation = (ev_mod.T @ Kd @ ev_mod)[0,0]
+
+        ## NOTE Currently, the dissipation term is 0
+        energy_dissipation = 0
+
+        dx_ti = (beta_i / self.x_ti) * (gamma_i * inner_product_i + energy_dissipation) \
                 + (alpha_i / self.x_ti) * (1 - gamma_i) * inner_product_i
         
         self.x_ti = self.x_ti + dx_ti * self.dt 
@@ -544,7 +645,12 @@ class RobotEnv:
 
         M_d = np.eye(6) * 10
 
-        tau_tilde = M_tilde @ np.linalg.inv(M_d) @ (- Kd @ ev_mod - fg + F_f_mod)
+        # Currently Working version =========================================================
+        # tau_tilde = M_tilde @ np.linalg.inv(M_d) @ (- Kd @ ev_mod - fg + F_f_mod + Fe) - Fe
+
+        tau_tilde = M_tilde @ np.linalg.inv(M_d) @ (- Kd @ ev_mod - fg + F_f_mod) - Fe
+
+        # tau_tilde = -Kd @ ev_mod - fg + F_f_mod 
 
         # print('FT Sensor Value:', Fe.reshape((-1,)))
 
@@ -567,14 +673,24 @@ if __name__ == "__main__":
     show_viewer = True
     angle = 0
     angle_rad = angle / 180 * np.pi
+
     tracking = 'line'  # None, 'circle', 'line'
+
+    gic_only = False
 
     assert tracking in [None, 'circle', 'line']
 
-    RE = RobotEnv(robot_name, show_viewer = show_viewer, max_time = 8, obs_type = 'pos', window_size = 1, hole_ori = 'default', 
+    if tracking is None:
+        max_time = 6
+    elif tracking == 'line':
+        max_time = 8
+    elif tracking == 'circle':
+        max_time = 10    
+
+    RE = RobotEnv(robot_name, show_viewer = show_viewer, max_time = max_time, obs_type = 'pos', window_size = 1, hole_ori = 'default', 
                   use_ext_force = False, testing = None, act_type = 'minimal', reward_version = 'force_penalty',
-                  hole_angle = angle_rad, fix_camera = False, tracking = tracking)
-    p_list, R_list, x_tf_list, x_ti_list, Fe_list, Fd_list = RE.run()
+                  hole_angle = angle_rad, fix_camera = False, tracking = tracking, gic_only = gic_only)
+    p_list, R_list, x_tf_list, x_ti_list, Fe_list, Fd_list, pd_list = RE.run()
 
     Ff_list = RE.Ff_list
     Vb_list = RE.Vb_list
@@ -595,27 +711,58 @@ if __name__ == "__main__":
     Ff_activation_arr = np.asarray(Ff_activation)
     rho_arr = np.asarray(rho_list)
 
+    pd_arr = np.asarray(pd_list)
+
     # Perform the inner_product_f value
-    inner_product_f_arr = np.zeros((len(Vb_arr),1))
-    for i in range(len(Vb_arr)):
-        inner_product_f_arr[i] = (Vb_arr[i].T @ Ff_arr[i]).reshape((-1,))[0]
+    # inner_product_f_arr = np.zeros((len(Vb_arr),1))
+    # for i in range(len(Vb_arr)):
+    #     inner_product_f_arr[i] = (Vb_arr[i].T @ Ff_arr[i]).reshape((-1,))[0]
+
+    data = {}
+    data['p_arr'] = p_arr
+    data['R_arr'] = R_arr
+    data['x_tf_arr'] = x_tf_arr
+    data['x_ti_arr'] = x_ti_arr
+    data['Fe_arr'] = Fe_arr
+    data['Fd_arr'] = Fd_arr
+    data['Ff_arr'] = Ff_arr
+    data['Vb_arr'] = Vb_arr
+    data['Ff_activation_arr'] = Ff_activation_arr
+    data['rho_arr'] = rho_arr
+    data['pd_arr'] = pd_arr
+
+    if tracking is None:
+        task_name = 'regulation'
+    else:
+        task_name = tracking
+
+    if gic_only:
+        task_name = task_name + '_gic'
+    else:
+        task_name = task_name + '_gufic'
+
+    with open(f'data/result_{task_name}.pkl', 'wb') as f:
+        pickle.dump(data, f)
 
     # plot the force profile 
     plt.figure(1)
-    plt.plot(Fe_arr[:,2])
-    plt.plot(-Fd_arr[:,2])
+    plt.plot(-Fe_arr[:,2])
+    plt.plot(Fd_arr[:,2])
     plt.ylabel('Force z direction')
     plt.xlabel('Time Step')
 
     plt.figure(2)
     plt.subplot(311)
     plt.plot(p_arr[:,0])
+    plt.plot(pd_arr[:,0])
     plt.ylabel('x (m)')
     plt.subplot(312)
     plt.plot(p_arr[:,1])
+    plt.plot(pd_arr[:,1])
     plt.ylabel('y (m)')
     plt.subplot(313)
     plt.plot(p_arr[:,2])
+    plt.plot(pd_arr[:,2])
     plt.ylabel('z (m)')
     plt.xlabel('Time Step')
 
@@ -638,5 +785,7 @@ if __name__ == "__main__":
     plt.ylabel('Rho Value')
 
     plt.show()
+
+
 
 

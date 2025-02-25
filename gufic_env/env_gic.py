@@ -338,7 +338,7 @@ class RobotEnv:
 
         tau_tilde = M_tilde @ np.linalg.inv(M_d) @ (- Kd @ eV - fg + Fe_FT) - Fe_FT
 
-        print('FT Sensor Value:', Fe_FT.reshape((-1,)))
+        # print('FT Sensor Value:', Fe_FT.reshape((-1,)))
 
         tau_cmd = Jb.T @ tau_tilde + qfrc_bias.reshape((-1,1))
 

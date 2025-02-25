@@ -1,12 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <mujoco model="Indy7">
 
-  <compiler angle="radian" inertiafromgeom="false" coordinate="local" convexhull="true" eulerseq="xyz"/>
-  <size njmax="500" nconmax="100"/>
-    <!-- <option cone="pyramidal" gravity="0 0 -9.81" timestep="0.00025" integrator="Euler">
-        <flag contact="enable"/>
-    </option> -->
-    <option timestep="0.001" gravity="0 0 -9.81" noslip_iterations="200" iterations="300" integrator="RK4" cone = "pyramidal"/> 
+    <!-- <compiler angle="radian" inertiafromgeom="false" coordinate="local" convexhull="true" eulerseq="xyz"/> -->
+    <!-- <size njmax="500" nconmax="100"/> -->
+    <!-- <option timestep="0.001" gravity="0 0 -9.81" noslip_iterations="200" iterations="300" integrator="RK4" cone = "pyramidal"/> -->
+
+
+    <statistic extent="2" meansize=".05"/>
+    <compiler angle="radian" coordinate="local" eulerseq="XYZ"/>
+    <size njmax="5000" nconmax="250"/>
+    <option timestep="0.001" solver="Newton" gravity ="0 0 -9.81" iterations="30" tolerance="1e-10" jacobian="sparse" cone="elliptic"/> 
 
 
     <visual>

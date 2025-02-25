@@ -116,7 +116,7 @@ class RobotEnv:
             self.KR = np.eye(3) * np.array([2000, 2000, 2000])
             self.Kd = np.eye(6) * np.array([300, 300, 300, 300, 300, 300])
 
-            self.kp_force = 0.35
+            self.kp_force = 0.5
             self.kd_force = 0.3
             self.ki_force = 0.8
 
@@ -646,9 +646,9 @@ class RobotEnv:
         M_d = np.eye(6) * 10
 
         # Currently Working version =========================================================
-        # tau_tilde = M_tilde @ np.linalg.inv(M_d) @ (- Kd @ ev_mod - fg + F_f_mod + Fe) - Fe
+        tau_tilde = M_tilde @ np.linalg.inv(M_d) @ (- Kd @ ev_mod - fg + F_f_mod + Fe) - Fe
 
-        tau_tilde = M_tilde @ np.linalg.inv(M_d) @ (- Kd @ ev_mod - fg + F_f_mod) - Fe
+        # tau_tilde = M_tilde @ np.linalg.inv(M_d) @ (- Kd @ ev_mod - fg + F_f_mod) - Fe
 
         # tau_tilde = -Kd @ ev_mod - fg + F_f_mod 
 
@@ -674,7 +674,7 @@ if __name__ == "__main__":
     angle = 0
     angle_rad = angle / 180 * np.pi
 
-    tracking = 'line'  # None, 'circle', 'line'
+    tracking = None  # None, 'circle', 'line'
 
     gic_only = False
 

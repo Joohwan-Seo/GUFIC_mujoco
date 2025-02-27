@@ -52,10 +52,10 @@ class RobotState:
         self.ft_body_name = "ft_assembly"
         # self.lp_filter2 = ButterLowPass(cutoff, fs, order=2)
 
-        self.Ad, self.Bd = self.define_filter(10, dt)
+        self.Ad, self.Bd = self.define_filter(5, dt)
         self.filter_state = np.zeros((12,1))
 
-        self.Ad_raw, self.Bd_raw = self.define_filter(30, dt)
+        self.Ad_raw, self.Bd_raw = self.define_filter(50, dt)
         self.filter_state_raw = np.zeros((12,1))
 
         print("initialization complete")

@@ -19,10 +19,12 @@ from gufic_env.utils.misc_func import vee_map, hat_map, rotmat_x
 import matplotlib.pyplot as plt
 
 class RobotEnv:
-    def __init__(self, robot_name = 'indy7', max_time = 10, show_viewer = False, 
+    def __init__(self, robot_name = 'indy7', max_time = 10, show_viewer = False, fz = 10,
                  obs_type = 'pos', hole_ori = 'default', testing = False, reward_version = None, window_size = 1, 
-                 use_ext_force = False, act_type = 'default', mixed_obs = False, hole_angle = 0.0, in_dist = True, fix_camera = False,
-                 tracking = None, gic_only = False):
+                 use_ext_force = False, act_type = 'default', mixed_obs = False, 
+                 hole_angle = 0.0, in_dist = True, fix_camera = False,
+                 tracking = None, gic_only = False, randomized_start = False,
+                 inertia_shaping = False):
         
         self.robot_name = robot_name
         print(self.robot_name)
@@ -30,7 +32,10 @@ class RobotEnv:
         self.testing = testing 
         self.tracking = tracking
         self.gic_only = gic_only
+        self.randomized_start = randomized_start
+        self.inertia_shaping = inertia_shaping
 
+        self.fz = fz
 
         self.reward_version = reward_version
         self.window_size = window_size
@@ -102,9 +107,9 @@ class RobotEnv:
             self.Kd = np.eye(6) * np.array([500, 500, 500, 500, 500, 500])
 
             # Default Value
-            self.kp_force = 1.5
-            self.kd_force = 0.1
-            self.ki_force = 0.8
+            self.kp_force = 1.0
+            self.kd_force = 0.5
+            self.ki_force = 4.0
 
             self.pd = np.array([0.50, 0.00, 0.12])
 
@@ -120,9 +125,9 @@ class RobotEnv:
             self.KR = np.eye(3) * np.array([2000, 2000, 2000])
             self.Kd = np.eye(6) * np.array([300, 300, 300, 300, 300, 300])
 
-            self.kp_force = 0.8
-            self.kd_force = 0.1
-            self.ki_force = 1.0
+            self.kp_force = 1.0
+            self.kd_force = 0.5
+            self.ki_force = 4.0
 
             # self.kp_force = 0.3
             # self.kd_force = 0.25
@@ -208,8 +213,13 @@ class RobotEnv:
         self.done_count = 0
 
         if not self.testing:
-            rand_xy = 2*(np.random.rand(2,) - 0.5) * 0.05
-            rand_rpy = 2*(np.random.rand(3,) - 0.5) * 15 /180 * np.pi
+
+            if self.randomized_start:
+                rand_xy = 2*(np.random.rand(2,) - 0.5) * 0.05
+                rand_rpy = 2*(np.random.rand(3,) - 0.5) * 15 /180 * np.pi
+            else:
+                rand_xy = np.array([0.05, -0.05])
+                rand_rpy = np.array([15, -15, 15]) * np.pi /180
 
             Rx = np.array([[1, 0, 0], [0, np.cos(rand_rpy[0]), -np.sin(rand_rpy[0])], [0, np.sin(rand_rpy[0]), np.cos(rand_rpy[0])]])
             Ry = np.array([[np.cos(rand_rpy[1]), 0, np.sin(rand_rpy[1])], [0, 1, 0], [-np.sin(rand_rpy[1]), 0, np.cos(rand_rpy[1])]])
@@ -220,8 +230,12 @@ class RobotEnv:
 
             p_init = p_init.reshape((-1,))
         else:
-            rand_xy = 2*(np.random.rand(2,) - 0.5) * 0.04
-            rand_rpy = 2*(np.random.rand(3,) - 0.5) * 12 /180 * np.pi
+            if self.randomized_start:
+                rand_xy = 2*(np.random.rand(2,) - 0.5) * 0.04
+                rand_rpy = 2*(np.random.rand(3,) - 0.5) * 12 /180 * np.pi
+            else:
+                rand_xy = np.array([0.04, -0.04])
+                rand_rpy = np.array([12, -12, 12]) * np.pi /180
 
             Rx = np.array([[1, 0, 0], [0, np.cos(rand_rpy[0]), -np.sin(rand_rpy[0])], [0, np.sin(rand_rpy[0]), np.cos(rand_rpy[0])]])
             Ry = np.array([[np.cos(rand_rpy[1]), 0, np.sin(rand_rpy[1])], [0, 1, 0], [-np.sin(rand_rpy[1]), 0, np.cos(rand_rpy[1])]])
@@ -459,7 +473,7 @@ class RobotEnv:
         # else:
         #     fz = 10
 
-        fz = 10
+        fz = self.fz
 
         Fd = np.array([0, 0, fz, 0, 0, 0])
         return Fd
@@ -509,7 +523,10 @@ class RobotEnv:
         # else:
         #     F_f = np.zeros((6,1))
 
-        F_f = - self.kp_force * e_force - self.kd_force * de_force - self.ki_force * int_force
+        F_f = - self.kp_force * e_force - self.kd_force * de_force - self.ki_force * int_force + Fd
+
+        # integral action with minor loop
+        # F_f = - self.kp_force * (-Fe) - self.ki_force * int_force
 
         # F_f = np.clip(F_f, -30, 30)
 
@@ -534,7 +551,7 @@ class RobotEnv:
             # print(ep @ f_d)
             # print(self.force_control_trigger)
             # print(np.linalg.norm(Fe[2]))
-            # print(F_f[2])
+            print(Fe[2])
             # print(x[2])
             pass
 
@@ -661,8 +678,11 @@ class RobotEnv:
 
 
         Fe_raw = self.get_FT_value_raw().reshape((-1,1))
-        # tau_tilde = -Kd @ ev_mod - fg + F_f_mod
-        tau_tilde = M_tilde @ np.linalg.inv(M_d) @ (- Kd @ ev_mod - fg + F_f_mod + Fe_raw) - Fe_raw
+        if self.inertia_shaping:
+            tau_tilde = M_tilde @ np.linalg.inv(M_d) @ (- Kd @ ev_mod - fg + F_f_mod + Fe_raw) - Fe_raw 
+        else:
+            tau_tilde = -Kd @ ev_mod - fg + F_f_mod
+        # tau_tilde = M_tilde @ np.linalg.inv(M_d) @ (- Kd @ ev_mod - fg + F_f_mod + Fe_raw) - Fe_raw 
 
         
         # print('FT Sensor Value:', Fe.reshape((-1,)))
@@ -686,10 +706,12 @@ if __name__ == "__main__":
     show_viewer = False
     angle = 0
     angle_rad = angle / 180 * np.pi
+    randomized_start = False
+    inertia_shaping = True
 
-    tracking = None  # None, 'circle', 'line'
+    tracking = 'line'  # None, 'circle', 'line'
 
-    gic_only = False
+    gic_only = True
 
     assert tracking in [None, 'circle', 'line']
 
@@ -701,8 +723,9 @@ if __name__ == "__main__":
         max_time = 10    
 
     RE = RobotEnv(robot_name, show_viewer = show_viewer, max_time = max_time, obs_type = 'pos', window_size = 1, hole_ori = 'default', 
-                  use_ext_force = False, testing = None, act_type = 'minimal', reward_version = 'force_penalty',
-                  hole_angle = angle_rad, fix_camera = False, tracking = tracking, gic_only = gic_only)
+                  use_ext_force = False, testing = None, act_type = 'minimal', reward_version = 'force_penalty', fz = 10, 
+                  hole_angle = angle_rad, fix_camera = False, tracking = tracking, gic_only = gic_only, 
+                  randomized_start=randomized_start, inertia_shaping = inertia_shaping)
     p_list, R_list, x_tf_list, x_ti_list, Fe_list, Fd_list, pd_list, Fe_raw_list = RE.run()
 
     Ff_list = RE.Ff_list
@@ -758,7 +781,7 @@ if __name__ == "__main__":
     else:
         task_name = task_name + '_gufic'
 
-    with open(f'data/result_{task_name}.pkl', 'wb') as f:
+    with open(f'data/result_{task_name}_IS_{inertia_shaping}.pkl', 'wb') as f:
         pickle.dump(data, f)
 
     # plot the force profile 

@@ -4,7 +4,7 @@
     <statistic extent="2" meansize=".05"/>
     <compiler angle="radian" inertiafromgeom="false" coordinate="local" convexhull="true" eulerseq="xyz"/>
     <size njmax="5000" nconmax="250"/>
-    <option timestep="0.001" gravity="0 0 -9.81" jacobian="sparse" iterations="300" solver="Newton" tolerance="1e-10" cone = "elliptic"/>
+    <option timestep="0.001" gravity="0 0 -9.81" jacobian="sparse" iterations="300" solver="Newton" tolerance="1e-10" cone = "pyramidal"/>
 
 
     <!-- <statistic extent="2" meansize=".05"/>

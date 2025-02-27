@@ -7,7 +7,7 @@ import os
 # Load the data
 dt = 0.001
 
-task = "line" # 'regulation', 'line', 'circle'
+task = "regulation" # 'regulation', 'line', 'circle'
 assert task in ['regulation', 'line', 'circle']
 
 control = 'gufic' #'gufic', 'gic'
@@ -25,6 +25,7 @@ with open(gic_file, 'rb') as f:
 # print(data_gufic.keys())
 
 Fe_arr_gufic = data_gufic['Fe_arr']
+Fe_raw_arr_gufic = data_gufic['Fe_raw_arr']
 Fd_arr_gufic = data_gufic['Fd_arr']
 p_arr_gufic = data_gufic['p_arr']
 pd_arr_gufic = data_gufic['pd_arr']
@@ -43,6 +44,7 @@ t_arr = [i*dt for i in range(N)]
 # Downsample the data_gufic by a factor of 20
 downsample_factor = 20
 Fe_arr_gufic = Fe_arr_gufic[::downsample_factor]
+Fe_raw_arr_gufic = Fe_raw_arr_gufic[::downsample_factor]
 Fd_arr_gufic = Fd_arr_gufic[::downsample_factor]
 
 p_arr_gufic = p_arr_gufic[::downsample_factor]
@@ -56,6 +58,7 @@ rho_arr_gufic = rho_arr_gufic[::downsample_factor]
 
 # Do the same thing for gic
 Fe_arr_gic = data_gic['Fe_arr']
+Fe_raw_arr_gic = data_gic['Fe_raw_arr']
 Fd_arr_gic = data_gic['Fd_arr']
 
 p_arr_gic = data_gic['p_arr']
@@ -75,6 +78,8 @@ tank_impedance_gic = 0.5 * x_ti_arr_gic**2
 Fe_arr_gic = Fe_arr_gic[::downsample_factor]
 Fd_arr_gic = Fd_arr_gic[::downsample_factor]
 
+Fe_raw_arr_gic = Fe_raw_arr_gic[::downsample_factor]
+
 p_arr_gic = p_arr_gic[::downsample_factor]
 pd_arr_gic = pd_arr_gic[::downsample_factor]
 
@@ -92,8 +97,8 @@ dir = "data"
 
 # plot the force profile 
 plt.figure(1)
-plt.plot(t_arr,Fe_arr_gufic[:,2])
-plt.plot(t_arr,Fe_arr_gic[:,2])
+plt.plot(t_arr,Fe_raw_arr_gufic[:,2])
+plt.plot(t_arr,Fe_raw_arr_gic[:,2])
 plt.plot(t_arr,-Fd_arr_gufic[:,2])
 plt.ylabel('Force z direction')
 plt.xlabel('Time (s)')

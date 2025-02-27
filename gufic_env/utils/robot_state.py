@@ -13,6 +13,10 @@ from gufic_env.utils.mujoco import (MJ_SITE_OBJ, get_contact_force,
 
 # from ctypes import *
 
+# import linear control package
+import control as ctrl
+from scipy.linalg import block_diag
+
 
 class RobotState:
     """Wrapper to the mujoco sim to store robot state and perform
@@ -41,11 +45,62 @@ class RobotState:
         # print('dt:', dt)
         fs = 1 / dt
         # cutoff = 2 ## Default value is 50
-        cutoff = 5
+        cutoff = 10
         self.fe = np.zeros(6)
         self.lp_filter = ButterLowPass(cutoff, fs, order=5)
+        self.lp_filter_raw = ButterLowPass(cutoff=10, fs=fs, order=5)
         self.ft_body_name = "ft_assembly"
         # self.lp_filter2 = ButterLowPass(cutoff, fs, order=2)
+
+        self.Ad, self.Bd = self.define_filter(10, dt)
+        self.filter_state = np.zeros((12,1))
+
+        self.Ad_raw, self.Bd_raw = self.define_filter(30, dt)
+        self.filter_state_raw = np.zeros((12,1))
+
+        print("initialization complete")
+
+    def define_filter(self, cutoff, dt, dim =6):
+        ws = cutoff
+        A = np.array([[0, 1],
+                      [-ws**2, -2 * 1 * ws]])
+        B = np.array([[0], [ws**2]])
+        C = np.array([[1, 0]])
+
+        sys = ctrl.ss(A, B, C, 0)
+        sys_d = ctrl.c2d(sys, dt)
+
+        Ad1 = sys_d.A
+        Bd1 = sys_d.B
+
+        # stack Ad and Bd for dim times
+        Ad = block_diag(*[Ad1 for _ in range(dim)])
+        Bd = block_diag(*[Bd1 for _ in range(dim)])
+
+        return Ad, Bd
+    
+    def lp_filter_implemented(self, force_torque):
+        # 0, 2, 4, 6, 8, 10 indices are filtered values
+        xf = self.filter_state[::2]
+
+        # 1, 3, 5, 7, 9, 11 indices are filtered derivative values
+        dxf = self.filter_state[1::2]
+
+        self.filter_state = self.Ad @ self.filter_state + self.Bd @ force_torque.reshape((-1,1))
+
+        return xf, dxf
+    
+    def lp_filter_implemented_raw(self, force_torque):
+        # 0, 2, 4, 6, 8, 10 indices are filtered values
+        xf = self.filter_state_raw[::2]
+
+        # 1, 3, 5, 7, 9, 11 indices are filtered derivative values
+        dxf = self.filter_state_raw[1::2]
+
+        self.filter_state_raw = self.Ad_raw @ self.filter_state_raw + self.Bd_raw @ force_torque.reshape((-1,1))
+
+        return xf, dxf
+
 
     def update(self):
         """Update the internal simulation state (kinematics, external force, ...).
@@ -88,12 +143,40 @@ class RobotState:
         torque = np.copy(self.data.sensordata[adr:adr + dim])
         force_torque = np.concatenate([force, torque])
         # update robot state
-        self.force_sensor_data = self.lp_filter(force_torque.reshape((-1, 6)))[0, :]
-        # print('low-pass signal states:', self.lp_filter.zi.shape)
-        # print(self.force_sensor_data - self.lp_filter.zi[0,:])
-        # self.force_sensor_data = force_torque
 
-        return self.force_sensor_data, self.lp_filter.zi[1,:]
+        # if hasattr(self.lp_filter, 'zi'):
+        #     ft = self.lp_filter.zi[0,:]
+        #     dft = self.lp_filter.zi[1,:]
+        # else:
+        #     ft = np.zeros(6)
+        #     dft = np.zeros(6)
+        
+        # self.force_sensor_data = self.lp_filter(force_torque.reshape((-1, 6)))[0, :]
+
+        ft , dft = self.lp_filter_implemented(force_torque)
+        return ft, dft
+
+        # return ft, dft
+    
+    def get_ee_force_raw(self,):
+        sensor_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SENSOR, "force_sensor")
+
+        # Get address and dimension of the sensor
+        adr = self.model.sensor_adr[sensor_id]
+        dim = self.model.sensor_dim[sensor_id]
+        force = np.copy(self.data.sensordata[adr:adr + dim])
+        # get torque sensor data
+        sensor_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SENSOR, "torque_sensor")
+        adr = self.model.sensor_adr[sensor_id]
+        dim = self.model.sensor_dim[sensor_id]
+        torque = np.copy(self.data.sensordata[adr:adr + dim])
+        force_torque = np.concatenate([force, torque])
+
+        # force_sensor_data = self.lp_filter_raw(force_torque.reshape((-1, 6)))[0, :]
+
+        ft_raw , dft_raw = self.lp_filter_implemented_raw(force_torque)
+
+        return ft_raw , dft_raw
     
     def transform_rot(self, fe, desired):
         pe, Re = self.get_pose()

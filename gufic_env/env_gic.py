@@ -49,7 +49,7 @@ class RobotEnv:
         #NOTE(JS) The determinant of the desired rotation matrix should be always 1.
         # (by the definition of the rotational matrix.)
 
-        self.pd = np.array([0.50, 0.05, 0.15])
+        self.pd = np.array([0.50, 0.05, 0.20])
         self.Rd = np.array([[0, 1, 0],
                             [1, 0, 0],
                             [0, 0, -1]])
@@ -330,6 +330,8 @@ class RobotEnv:
         Kd = np.sqrt(np.block([[Kp, np.zeros((3,3))],[np.zeros((3,3)), KR]])) * 10
 
         Fe_FT = self.get_FT_value().reshape((-1,1))
+
+        # print('FT Sensor Value:', Fe_FT[2])
 
         M_tilde_inv = Jb @ np.linalg.pinv(M) @ Jb.T
         M_tilde = np.linalg.pinv(M_tilde_inv)

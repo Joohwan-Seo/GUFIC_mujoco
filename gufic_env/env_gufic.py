@@ -14,7 +14,7 @@ from gym import utils
 # import matplotlib.pyplot as plt
 from gufic_env.utils.robot_state import RobotState
 from gufic_env.utils.mujoco import set_state, set_body_pose_rotm
-from gufic_env.utils.misc_func import vee_map, hat_map, rotmat_x
+from gufic_env.utils.misc_func import *
 
 import matplotlib.pyplot as plt
 
@@ -114,10 +114,10 @@ class RobotEnv:
             self.pd = np.array([0.50, 0.00, 0.12])
 
             # NOTE(JS) Working version of gain for the force tracking, with the 2nd order low-pass filter
-            # with cutoff 10hz of the frequency and the inertia shaping version
-            # self.kp_force = 1.5
-            # self.kd_force = 0.1
-            # self.ki_force = 0.8
+            # with cutoff 5hz of the frequency w/o inertia shaping and regular PID control with sat 50
+            # self.kp_force = 1.0
+            # self.kd_force = 0.5
+            # self.ki_force = 4.0
 
         elif self.tracking == 'circle' or 'line':
             # self.Kp = np.eye(3) * np.array([2500, 2500, 300])
@@ -137,9 +137,9 @@ class RobotEnv:
 
         if self.gic_only == True:
             if self.tracking is None:
-                self.Kp = np.eye(3) * np.array([1500, 1500, 1000])
+                self.Kp = np.eye(3) * np.array([1500, 1500, 800])
             elif self.tracking == 'circle' or 'line':
-                self.Kp = np.eye(3) * np.array([2500, 2500, 1000])
+                self.Kp = np.eye(3) * np.array([2500, 2500, 800])
             self.pd = np.array([0.50, 0.00, 0.12])
             self.pd_default = self.pd
 
@@ -473,7 +473,11 @@ class RobotEnv:
         # else:
         #     fz = 10
 
-        fz = self.fz
+        if self.fz == "time-varying":
+            fz = 10 * (np.sin(2 * np.pi / 10 * self.time_step * self.dt) + 0.5)
+        
+        else:
+            fz = self.fz
 
         Fd = np.array([0, 0, fz, 0, 0, 0])
         return Fd
@@ -500,6 +504,17 @@ class RobotEnv:
 
         #2. calculate PID control for the force tracking
         Fd = self.get_force_profile().reshape((-1,1))
+
+        g = np.eye(4)
+        g[:3,:3] = R
+        g[:3,3] = x
+        gd = np.eye(4)
+        gd[:3,:3] = Rd
+        gd[:3,3] = xd
+
+        g_ed = np.linalg.inv(g) @ gd
+        Fd_star = adjoint_g_ed_dual(g_ed) @ Fd
+
         Fe, d_Fe = self.get_FT_value(return_derivative=True)
         Fe = Fe.reshape((-1,1))
         d_Fe = d_Fe.reshape((-1,1))
@@ -507,7 +522,7 @@ class RobotEnv:
         # NOTE(JS) Working is thate to put e_force = - Fe - Fd, with the Fe = -self.robot_state.get_ee_force()
         # Fd should be positive as well
 
-        e_force = -Fe - Fd
+        e_force = -Fe - Fd_star
         de_force = -d_Fe
         int_force = self.int_force_prev + e_force * self.dt
 
@@ -523,10 +538,10 @@ class RobotEnv:
         # else:
         #     F_f = np.zeros((6,1))
 
-        F_f = - self.kp_force * e_force - self.kd_force * de_force - self.ki_force * int_force + Fd
+        # F_f = - self.kp_force * e_force - self.kd_force * de_force - self.ki_force * int_force + Fd
 
         # integral action with minor loop
-        # F_f = - self.kp_force * (-Fe) - self.ki_force * int_force
+        F_f = - self.kp_force * (-Fe) - self.ki_force * int_force - self.kd_force * de_force + Fd_star
 
         # F_f = np.clip(F_f, -30, 30)
 
@@ -535,8 +550,8 @@ class RobotEnv:
             F_f = np.zeros((6,1))
 
         #2.5 Apply shaping function to the force control input
-        f_d = Fd[:3].reshape((-1,))
-        m_d = Fd[3:].reshape((-1,))
+        f_d = Fd_star[:3].reshape((-1,))
+        m_d = Fd_star[3:].reshape((-1,))
 
         eg = self.get_eg()
 
@@ -551,6 +566,7 @@ class RobotEnv:
             # print(ep @ f_d)
             # print(self.force_control_trigger)
             # print(np.linalg.norm(Fe[2]))
+            print((Fd - Fd_star).reshape((-1,)))
             print(Fe[2])
             # print(x[2])
             pass
@@ -611,7 +627,7 @@ class RobotEnv:
             alpha_f = 1
         elif self.T_f <= self.T_f_low + self.delta_f and self.T_f >= self.T_f_low:
             alpha_f = 0.5 * (1 - np.cos(np.pi * (self.T_f - self.T_f_low) / self.delta_f))
-        else:
+        elif self.T_f < self.T_f_low:
             alpha_f = 0
         
         dx_tf = - (beta_f / self.x_tf) * gamma_f * inner_product_f + (alpha_f / self.x_tf) * (gamma_f -1) * inner_product_f
@@ -703,15 +719,16 @@ class RobotEnv:
 
 if __name__ == "__main__":
     robot_name = 'indy7' 
-    show_viewer = False
+    show_viewer = True
     angle = 0
     angle_rad = angle / 180 * np.pi
     randomized_start = False
-    inertia_shaping = True
+    inertia_shaping = False
+    save = True
 
-    tracking = 'line'  # None, 'circle', 'line'
+    tracking = None  # None, 'circle', 'line'
 
-    gic_only = True
+    gic_only = False
 
     assert tracking in [None, 'circle', 'line']
 
@@ -781,8 +798,9 @@ if __name__ == "__main__":
     else:
         task_name = task_name + '_gufic'
 
-    with open(f'data/result_{task_name}_IS_{inertia_shaping}.pkl', 'wb') as f:
-        pickle.dump(data, f)
+    if save:
+        with open(f'data/result_{task_name}_IS_{inertia_shaping}.pkl', 'wb') as f:
+            pickle.dump(data, f)
 
     # plot the force profile 
     plt.figure(1)

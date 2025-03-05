@@ -7,7 +7,7 @@ import os
 # Load the data
 dt = 0.001
 
-task = "regulation" # 'regulation', 'line', 'circle'
+task = "circle" # 'regulation', 'line', 'circle'
 assert task in ['regulation', 'line', 'circle']
 
 control = 'gufic' #'gufic', 'gic'
@@ -16,6 +16,8 @@ assert control in ['gufic', 'gic']
 inertia_shaping = False
 
 export_tikz = False
+
+save_figure = True
 
 gufic_file = f"data/result_{task}_gufic_IS_{inertia_shaping}.pkl" 
 gic_file = f"data/result_{task}_gic_IS_{inertia_shaping}.pkl"
@@ -109,6 +111,10 @@ plt.ylabel('$f_z$ direction')
 plt.legend(['GUFIC', 'GIC', 'Desired'])
 plt.xlabel('Time (s)')
 
+# save figure
+if save_figure:
+    plt.savefig(f"{dir}/{task}_force_z.png")
+
 if export_tikz:
     tikzplotlib.save(f"{dir}/{task}_force_z.tex")
 
@@ -134,6 +140,8 @@ plt.grid()
 plt.ylabel('$z$ (m)')
 plt.xlabel('Time (s)')
 
+if save_figure:
+    plt.savefig(f"{dir}/{task}_xyz.png")
 if export_tikz:
     tikzplotlib.save(f"{dir}/{task}_xyz.tex")
 
@@ -144,6 +152,8 @@ plt.grid()
 plt.ylabel('Force Tank Level')
 plt.xlabel('Time (s)')
 
+if save_figure:
+    plt.savefig(f"{dir}/{task}_gufic_tank_force.png")
 if export_tikz:
     tikzplotlib.save(f"{dir}/{task}_gufic_tank_force.tex")
 
@@ -153,6 +163,8 @@ plt.grid()
 plt.ylabel('rho $z$ direction')
 plt.xlabel('Time (s)')
 
+if save_figure:
+    plt.savefig(f"{dir}/{task}_gufic_rho_z.png")
 if export_tikz:
     tikzplotlib.save(f"{dir}/{task}_gufic_rho_z.tex")
 

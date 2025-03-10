@@ -1,6 +1,6 @@
 import pickle
 import matplotlib.pyplot as plt
-import tikzplotlib
+import tikzplotlib # Updated version of mine
 
 import os
 
@@ -15,7 +15,7 @@ assert control in ['gufic', 'gic']
 
 inertia_shaping = False
 
-export_tikz = False
+export_tikz = True
 
 save_figure = True
 
@@ -102,7 +102,7 @@ t_arr = t_arr[::downsample_factor]
 dir = "data"
 
 # plot the force profile 
-plt.figure(1, figsize = (6,4.5))
+plt.figure(1, figsize = (6,4))
 plt.plot(t_arr,-Fe_arr_gufic[:,2], 'r')
 plt.plot(t_arr,-Fe_arr_gic[:,2], 'b--')
 plt.plot(t_arr,Fd_arr_gufic[:,2], 'k:')
@@ -124,7 +124,7 @@ plt.plot(t_arr,p_arr_gufic[:,0], 'r')
 plt.plot(t_arr,p_arr_gic[:,0], 'b--')
 plt.plot(t_arr,pd_arr_gufic[:,0], 'k:')
 plt.grid()
-plt.legend(['GUFIC', 'GIC', 'Desired'])
+plt.legend(['GUFIC', 'GIC', 'Desired'], loc='upper right', ncols=1 if task == 'circle' else 3)
 plt.ylabel('$x$ (m)')
 plt.subplot(312)
 plt.plot(t_arr,p_arr_gufic[:,1], 'r')
@@ -145,27 +145,54 @@ if save_figure:
 if export_tikz:
     tikzplotlib.save(f"{dir}/{task}_xyz.tex")
 
+plt.figure(3, figsize = (6,6))
+plt.subplot(411)
+plt.plot(t_arr,p_arr_gufic[:,0], 'r')
+plt.plot(t_arr,p_arr_gic[:,0], 'b--')
+plt.plot(t_arr,pd_arr_gufic[:,0], 'k:')
+plt.grid()
+plt.legend(['GUFIC', 'GIC', 'Desired'], loc='upper right', ncols=1 if task == 'circle' else 3)
+plt.ylabel('$x$ (m)')
+plt.subplot(412)
+plt.plot(t_arr,p_arr_gufic[:,1], 'r')
+plt.plot(t_arr,p_arr_gic[:,1], 'b--')
+plt.plot(t_arr,pd_arr_gufic[:,1], 'k:')
+plt.grid()
+plt.ylabel('$y$ (m)')
+plt.subplot(413)
+plt.plot(t_arr,p_arr_gufic[:,2], 'r')
+plt.plot(t_arr,p_arr_gic[:,2], 'b--')
+plt.plot(t_arr,pd_arr_gufic[:,2], 'k:')
+plt.grid()
+plt.ylabel('$z$ (m)')
+plt.subplot(414)
+plt.plot(t_arr,-Fe_arr_gufic[:,2], 'r')
+plt.plot(t_arr,-Fe_arr_gic[:,2], 'b--')
+plt.plot(t_arr,Fd_arr_gufic[:,2], 'k:')
+plt.grid()
+plt.ylabel('$f_z$ (N)')
+plt.xlabel('Time (s)')
+
+if save_figure:
+    plt.savefig(f"{dir}/{task}_xyz_force.png")
+if export_tikz:
+    tikzplotlib.save(f"{dir}/{task}_xyz_force.tex")
+
 # plot tank values T_f = 0.5 * x_tf^2, T_i = 0.5 * x_ti^2
-plt.figure(3, figsize= (6,4.5))
+plt.figure(4, figsize= (6,4))
+plt.subplot(2,1,1)
 plt.plot(t_arr,tank_force_gufic, 'r')
 plt.grid()
 plt.ylabel('Force Tank Level')
-plt.xlabel('Time (s)')
-
-if save_figure:
-    plt.savefig(f"{dir}/{task}_gufic_tank_force.png")
-if export_tikz:
-    tikzplotlib.save(f"{dir}/{task}_gufic_tank_force.tex")
-
-plt.figure(4, figsize= (6,4.5))
-plt.plot(t_arr,rho_arr_gufic[:,2])
+plt.subplot(2,1,2)
+plt.plot(t_arr,tank_impedance_gufic, 'r')
 plt.grid()
-plt.ylabel('rho $z$ direction')
+plt.ylabel('Impedance Tank Level')
 plt.xlabel('Time (s)')
 
 if save_figure:
-    plt.savefig(f"{dir}/{task}_gufic_rho_z.png")
+    plt.savefig(f"{dir}/{task}_gufic_tank.png")
 if export_tikz:
-    tikzplotlib.save(f"{dir}/{task}_gufic_rho_z.tex")
+    tikzplotlib.save(f"{dir}/{task}_gufic_tank.tex")
 
 plt.show()

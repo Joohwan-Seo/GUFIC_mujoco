@@ -26,11 +26,9 @@ import matplotlib.pyplot as plt
 
 class RobotEnv:
     def __init__(self, robot_name = 'indy7', max_time = 10, show_viewer = False, fz = 10,
-                 obs_type = 'pos', hole_ori = 'default', testing = False, reward_version = None, window_size = 1, 
-                 use_ext_force = False, act_type = 'default', mixed_obs = False, 
-                 hole_angle = 0.0, in_dist = True, fix_camera = False,
-                 tracking = None, gic_only = False, randomized_start = False,
-                 inertia_shaping = False):
+                 hole_ori = 'default', testing = False, hole_angle = 0.0, fix_camera = False,
+                 tracking = None, gic_only = False, randomized_start = False, inertia_shaping = False
+                 ):
         
         self.robot_name = robot_name
         print(self.robot_name)
@@ -42,26 +40,16 @@ class RobotEnv:
         self.inertia_shaping = inertia_shaping
 
         self.fz = fz
-
-        self.reward_version = reward_version
-        self.window_size = window_size
-        self.use_external_force = use_ext_force
-        self.act_type = act_type
-        self.in_dist = in_dist
         self.fix_camera = fix_camera
 
         self.hole_angle = hole_angle
 
-        if mixed_obs: # To obtain the data for GIC + CEV case
-            self.obs_is_Cart = True
-        else:
-            self.obs_is_Cart = False
         print('==============================================')
         print('USING GEOMETRIC UNIFED FORCE IMPEDANCE CONTROL')
         print('==============================================')
 
         # self.pd = np.array([0.50, 0.05, 0.13])
-        self.pd = np.array([0.50, 0.00, 0.13])
+        self.pd = np.array([0.50, 0.0, 0.13])
         self.Rd = np.array([[0, 1, 0],
                             [1, 0, 0],
                             [0, 0, -1]])
@@ -74,7 +62,7 @@ class RobotEnv:
                             [1, 0, 0],
                             [0, 0, -1]])
         
-        self.z_init_offset = -0.10
+        self.z_init_offset = -0.1
 
         self.initialize_trajectory()
 
@@ -83,7 +71,6 @@ class RobotEnv:
         self.show_viewer = show_viewer
         self.load_xml()
 
-        self.obs_type = obs_type
         self.robot_state = RobotState(self.model, self.data, "end_effector", self.robot_name)
 
         self.dt = self.model.opt.timestep
@@ -165,7 +152,7 @@ class RobotEnv:
         self.T_i_high = 20
         self.delta_i = 1
 
-        T_i_init = 5
+        T_i_init = 10
         T_f_init = 10
 
         self.x_tf = np.sqrt(2 * T_f_init)
@@ -174,7 +161,7 @@ class RobotEnv:
         self.T_f = 0.5 * self.x_tf**2
         self.T_i = 0.5 * self.x_ti**2
 
-        self.d_max = 0.05
+        self.d_max = 0.03
         self.eR_norm_max = 0.05
 
         ####### Dummy for the printing
@@ -183,6 +170,7 @@ class RobotEnv:
         self.Ff_activation = []
         self.rho_list = []
         self.Fd_star_list = []
+        self.Fi_activation = []
 
     def load_xml(self):
         # dir = "/home/joohwan/deeprl/research/GIC_Learning_public/"
@@ -277,8 +265,9 @@ class RobotEnv:
         if self.show_viewer:
             self.viewer.sync()
 
-        print(p_init)
-        print(self.pd)
+        print(p_init, R_init)
+
+        quit()
 
         print('Initialization Complete')
         time.sleep(2)
@@ -467,7 +456,7 @@ class RobotEnv:
         if self.show_viewer:
             self.viewer.sync()
 
-        obs = np.zeros((6,1))
+        obs = np.zeros((6,1)) # Just putting Dummy variable
 
         if self.iter == self.max_iter -1:
             done = True
@@ -521,14 +510,15 @@ class RobotEnv:
         ep = eg[:3,0]
 
         # linearly increase force as eg[2] goes to 0 up to 10
-        fz_ = 10 * (1 - abs(ep[2]))
-        if abs(eg[2]) < 0.03:
-            fz_ = 10
+        # fz_ = 10 * (1 - abs(ep[2]))
+        # if abs(eg[2]) < 0.03:
+        #     fz_ = 10
 
-        if eg[0] < 0.02:
-            fz = 2* fz_
-        else:
-            fz = fz_
+        # if eg[0] < 0.02:
+        #     fz = 2* fz_
+        # else:
+        #     fz = fz_
+        fz = self.fz
 
 
         Fd = np.array([0, 0, fz, 0, 0, 0])
@@ -552,7 +542,7 @@ class RobotEnv:
         g[:3,:3] = R
         g[:3,3] = p
 
-        Vb = self.robot_state.get_body_ee_velocity()
+        Vb = self.robot_state.get_body_ee_velocity() # Shape: (6,1)
 
         # Update trajectory values
         Vd_star, dVd_star = self.get_velocity_field(g, Vb.reshape((-1,)), t = self.time_step * self.dt)
@@ -578,15 +568,18 @@ class RobotEnv:
 
         # Fd_star = adjoint_g_ed_dual(g_ed) @ Fd
         gd_default = np.eye(4)
-        gd_default[:3,:3] = self.Rd_default
-        gd_default[:3,3] = self.pd_default
+        t = self.time_step * self.dt
+        # gd_default[:3,:3] = self.Rd_default
+        # gd_default[:3,3] = self.pd_default
+        gd_default[:3,:3] = self.Rd_t(t)
+        gd_default[:3,3] = self.pd_t(t).reshape((-1,))
         Fd_star = self.get_force_field(g, gd_default).reshape((-1,1))
 
         Fe, d_Fe = self.get_FT_value(return_derivative=True)
         Fe = Fe.reshape((-1,1))
         d_Fe = d_Fe.reshape((-1,1))
 
-        # NOTE(JS) Working is thate to put e_force = - Fe - Fd, with the Fe = -self.robot_state.get_ee_force()
+        # NOTE(JS) Working is version is that to put e_force = - Fe - Fd, with the Fe = -self.robot_state.get_ee_force()
         # Fd should be positive as well
 
         e_force = -Fe - Fd_star
@@ -668,12 +661,11 @@ class RobotEnv:
         self.e_force_prev = e_force
         self.int_force_prev = int_force
 
-        #3 update the energy tank state
-        Vb = self.robot_state.get_body_ee_velocity() #Shape: (6,1)
-
         # get a scalar value of the inner product of Vb and F_f without any numpy array
         inner_product_f = (Vb.T @ F_f).reshape((-1,))[0]
         # print(inner_product_f)
+
+        self.T_f = 0.5 * self.x_tf**2
 
         if inner_product_f < 0:
             gamma_f = 1
@@ -696,11 +688,14 @@ class RobotEnv:
         self.x_tf = self.x_tf + dx_tf * self.dt
         self.T_f = 0.5 * self.x_tf**2
 
-        F_f_mod = (gamma_f + alpha_f * (1 - gamma_f)) * F_f
+        activation_force = gamma_f + alpha_f * (1 - gamma_f)
+        F_f_mod = activation_force * F_f
 
         #4. Modified Impedance Control
 
         inner_product_i = (Vd_star.T @ (F_f_mod + Fe)).reshape((-1,))[0]
+
+        self.T_i = 0.5 * self.x_ti**2
 
         if inner_product_i > 0:
             gamma_i = 1
@@ -719,7 +714,9 @@ class RobotEnv:
         else:
             alpha_i = 0
 
-        Vd_star_mod = (gamma_i + alpha_i * (1 - gamma_i)) * Vd_star
+        activation_impedance = gamma_i + alpha_i * (1 - gamma_i)
+        Vd_star_mod = activation_impedance * Vd_star
+        dVd_star_mod = activation_impedance * dVd_star
         ev_mod = Vb - Vd_star_mod
 
         # calculate next_step gd
@@ -732,6 +729,7 @@ class RobotEnv:
 
         if self.gic_only:
             ev_mod = Vb - Vd_star
+            dVd_star_mod = dVd_star
 
 
         # Kd = np.sqrt(np.block([[Kp, np.zeros((3,3))],[np.zeros((3,3)), KR]])) * 10
@@ -744,7 +742,8 @@ class RobotEnv:
         ## NOTE Currently, the dissipation term is 0
         # energy_dissipation = 0
         if self.iter % 100 == 0:
-            print("energy_dissipation_term", {energy_dissipation})
+            print(f"Sign of impedance inner product:{np.sign(inner_product_i)}, acitvation_impedance: {activation_impedance}")
+            print(f"energy_dissipation:{energy_dissipation}" )
 
 
         dx_ti = (beta_i / self.x_ti) * (gamma_i * inner_product_i + energy_dissipation) \
@@ -772,9 +771,9 @@ class RobotEnv:
 
         Fe_raw = self.get_FT_value_raw().reshape((-1,1))
         if self.inertia_shaping:
-            tau_tilde = M_tilde @ (dVd_star + np.linalg.inv(M_d) @ (- Kd @ ev_mod - fg + F_f_mod + Fe_raw)) - Fe_raw 
+            tau_tilde = M_tilde @ (dVd_star_mod + np.linalg.inv(M_d) @ (- Kd @ ev_mod - fg + F_f_mod + Fe_raw)) - Fe_raw 
         else:
-            tau_tilde = M_tilde @ dVd_star -Kd @ ev_mod - fg + F_f_mod
+            tau_tilde = M_tilde @ dVd_star_mod -Kd @ ev_mod - fg + F_f_mod
         # tau_tilde = M_tilde @ np.linalg.inv(M_d) @ (- Kd @ ev_mod - fg + F_f_mod + Fe_raw) - Fe_raw 
 
         
@@ -786,7 +785,8 @@ class RobotEnv:
         self.Fd_star_list.append(Fd_star)
         self.Ff_list.append(F_f)
         self.Vb_list.append(Vb)
-        self.Ff_activation.append(gamma_f + alpha_f*(1 - gamma_f))
+        self.Ff_activation.append(activation_force)
+        self.Fi_activation.append(activation_impedance)
         self.rho_list.append(rho)
 
         return tau_cmd.reshape((-1,))
@@ -797,14 +797,14 @@ class RobotEnv:
 
 if __name__ == "__main__":
     robot_name = 'indy7' 
-    show_viewer = True
+    show_viewer = False
     angle = 0
     angle_rad = angle / 180 * np.pi
     randomized_start = False
     inertia_shaping = False
-    save = False
+    save = True
 
-    tracking = None  # None, 'circle', 'line'
+    tracking = 'circle'  # None, 'circle', 'line'
 
     gic_only = False
 
@@ -817,8 +817,8 @@ if __name__ == "__main__":
     elif tracking == 'circle':
         max_time = 10    
 
-    RE = RobotEnv(robot_name, show_viewer = show_viewer, max_time = max_time, obs_type = 'pos', window_size = 1, hole_ori = 'default', 
-                  use_ext_force = False, testing = None, act_type = 'minimal', reward_version = 'force_penalty', fz = 10, 
+    RE = RobotEnv(robot_name, show_viewer = show_viewer, max_time = max_time, hole_ori = 'default', 
+                  testing = False, fz = 10, 
                   hole_angle = angle_rad, fix_camera = False, tracking = tracking, gic_only = gic_only, 
                   randomized_start=randomized_start, inertia_shaping = inertia_shaping)
     p_list, R_list, x_tf_list, x_ti_list, Fe_list, Fd_list, pd_list, Fe_raw_list = RE.run()

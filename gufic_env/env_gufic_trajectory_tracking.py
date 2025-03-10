@@ -72,9 +72,7 @@ class RobotEnv:
                             [1, 0, 0],
                             [0, 0, -1]])
         
-        self.z_init_offset = -0.05
-
-        self.initialize_trajectory()
+        self.z_init_offset = -0.1
 
         self.contact_count = 0
 
@@ -143,6 +141,8 @@ class RobotEnv:
                 self.Kp = np.eye(3) * np.array([2500, 2500, 800])
             self.pd = np.array([0.50, 0.00, 0.12])
             self.pd_default = self.pd
+
+        self.initialize_trajectory()
 
 
         ## For the force tracking
@@ -213,7 +213,7 @@ class RobotEnv:
                 rand_xy = 2*(np.random.rand(2,) - 0.5) * 0.05
                 rand_rpy = 2*(np.random.rand(3,) - 0.5) * 15 /180 * np.pi
             else:
-                rand_xy = np.array([0.05, -0.05])
+                rand_xy = np.array([-0.05, 0.05])
                 rand_rpy = np.array([15, -15, 15]) * np.pi /180
 
             Rx = np.array([[1, 0, 0], [0, np.cos(rand_rpy[0]), -np.sin(rand_rpy[0])], [0, np.sin(rand_rpy[0]), np.cos(rand_rpy[0])]])
@@ -246,6 +246,8 @@ class RobotEnv:
             q0 = np.array([0, 0, -np.pi/2, 0, -np.pi/2, np.pi/2, 0, 0])
         elif self.model.nv == 6:
             q0 = np.array([0, 0, -np.pi/2, 0, -np.pi/2, np.pi/2])
+
+        print(p_init, R_init)
 
         self.robot_state.gauss_newton_IK(p_init, R_init, q0)
 
@@ -655,6 +657,7 @@ class RobotEnv:
         # energy_dissipation = 0
         if self.iter % 100 == 0:
             print("energy_dissipation_term", {energy_dissipation})
+            # print('zd', pd[2])
 
 
         dx_ti = (beta_i / self.x_ti) * (gamma_i * inner_product_i + energy_dissipation) \
@@ -706,16 +709,16 @@ class RobotEnv:
 
 if __name__ == "__main__":
     robot_name = 'indy7' 
-    show_viewer = True
+    show_viewer = False
     angle = 0
     angle_rad = angle / 180 * np.pi
     randomized_start = False
     inertia_shaping = False
-    save = False
+    save = True
 
-    tracking = 'line'  # None, 'circle', 'line'
+    tracking = 'circle'  # None, 'circle', 'line'
 
-    gic_only = False
+    gic_only = True
 
     assert tracking in [None, 'circle', 'line']
 
@@ -727,7 +730,7 @@ if __name__ == "__main__":
         max_time = 10    
 
     RE = RobotEnv(robot_name, show_viewer = show_viewer, max_time = max_time, obs_type = 'pos', window_size = 1, hole_ori = 'default', 
-                  use_ext_force = False, testing = None, act_type = 'minimal', reward_version = 'force_penalty', fz = 10, 
+                  use_ext_force = False, testing = False, act_type = 'minimal', reward_version = 'force_penalty', fz = 10, 
                   hole_angle = angle_rad, fix_camera = False, tracking = tracking, gic_only = gic_only, 
                   randomized_start=randomized_start, inertia_shaping = inertia_shaping)
     p_list, R_list, x_tf_list, x_ti_list, Fe_list, Fd_list, pd_list, Fe_raw_list = RE.run()

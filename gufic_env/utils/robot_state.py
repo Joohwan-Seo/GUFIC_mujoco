@@ -28,7 +28,7 @@ class RobotState:
     :attr mujoco.MjModel model: Description of parameter `model`.
     """
 
-    def __init__(self, model, data, ee_site_name, robot_name):
+    def __init__(self, model, data, ee_site_name, robot_name, cut_off_freq = 5):
         self.data = data
         self.model = model
         self.robot_name = robot_name
@@ -52,7 +52,7 @@ class RobotState:
         self.ft_body_name = "ft_assembly"
         # self.lp_filter2 = ButterLowPass(cutoff, fs, order=2)
 
-        self.Ad, self.Bd = self.define_filter(5, dt)
+        self.Ad, self.Bd = self.define_filter(cut_off_freq, dt)
         self.filter_state = np.zeros((12,1))
 
         self.Ad_raw, self.Bd_raw = self.define_filter(50, dt)

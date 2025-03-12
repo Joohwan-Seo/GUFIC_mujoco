@@ -104,9 +104,9 @@ class RobotEnv(Env):
             # Default Value
             self.kp_force = 1.0
             self.kd_force = 0.5
-            self.ki_force = 8.0
+            self.ki_force = 4.0
 
-            self.pd = np.array([0.50, 0.00, 0.12])
+            # self.pd = np.array([0.50, 0.00, 0.12])
 
             # NOTE(JS) Working version of gain for the force tracking, with the 2nd order low-pass filter
             # with cutoff 5hz of the frequency w/o inertia shaping and regular PID control with sat 50
@@ -114,21 +114,22 @@ class RobotEnv(Env):
             # self.kd_force = 0.5
             # self.ki_force = 4.0
 
-        elif self.tracking == 'circle' or 'line':
+        elif self.tracking == 'circle' or 'line' or 'sphere':
+            print('Sphere tracking')
             # self.Kp = np.eye(3) * np.array([2500, 2500, 100])
             self.Kp = np.eye(3) * np.array([2000, 2000, 100])
             self.KR = np.eye(3) * np.array([2000, 2000, 2000])
             self.Kd = np.eye(6) * np.array([500, 500, 500, 500, 500, 500])
 
-            self.kp_force = 2.0
-            self.kd_force = 1.0
-            self.ki_force = 10.0
+            self.kp_force = 1.5
+            self.kd_force = 0.75
+            self.ki_force = 6.0
 
             # self.kp_force = 0.3
             # self.kd_force = 0.25
             # self.ki_force = 0.6
 
-            self.pd = np.array([0.50, 0.00, 0.12])
+            # self.pd = np.array([0.50, 0.00, 0.12])
 
         if self.gic_only == True:
             if self.tracking is None:
@@ -199,7 +200,7 @@ class RobotEnv(Env):
                 self.viewer.cam.fixedcamid = 0      # Use a predefined camera from your XML (if available)
                 self.viewer.cam.trackbodyid = -1      # Disable tracking any body
                 # Alternatively, if you want to set a free camera pose manually:
-                self.viewer.cam.lookat = np.array([0.5, 0.0, 0.2])  # Center of the scene
+                self.viewer.cam.lookat = np.array([0.5, 0.0, 0.3])  # Center of the scene
                 self.viewer.cam.distance = 1.5                     # Distance from the lookat point
                 self.viewer.cam.azimuth = 180                       # Horizontal angle in degrees
                 self.viewer.cam.elevation = -20                    # Vertical angle in degrees
@@ -225,6 +226,7 @@ class RobotEnv(Env):
             else:
                 rand_xy = np.array([-0.05, 0.05])
                 rand_rpy = np.array([15, -15, 15]) * np.pi /180
+                # rand_rpy = np.zeros(3,)
 
             Rx = np.array([[1, 0, 0], [0, np.cos(rand_rpy[0]), -np.sin(rand_rpy[0])], [0, np.sin(rand_rpy[0]), np.cos(rand_rpy[0])]])
             Ry = np.array([[np.cos(rand_rpy[1]), 0, np.sin(rand_rpy[1])], [0, 1, 0], [-np.sin(rand_rpy[1]), 0, np.cos(rand_rpy[1])]])
@@ -320,8 +322,8 @@ class RobotEnv(Env):
             theta_y = omega_value * t - total_radian * 0.5
 
 
-            r_sphere = 0.3
-            pd_t_sim = pd_default_sym + sp.Matrix([0, r_sphere * sp.sin(theta_y), -0.1 + r_sphere * sp.cos(theta_y)])
+            r_sphere = 0.304
+            pd_t_sim = pd_default_sym + sp.Matrix([0, r_sphere * sp.sin(theta_y), -0.10 + r_sphere * sp.cos(theta_y)])
             rotmat_y = sp.Matrix([[sp.cos(-theta_y), 0, sp.sin(-theta_y)], [0, 1, 0], [-sp.sin(-theta_y), 0, sp.cos(-theta_y)]])
             Rd_t_sim = Rd_default_sym @ rotmat_y
 
@@ -352,6 +354,7 @@ class RobotEnv(Env):
         x_ti_list = []
         Fe_list = []
         Fd_list = []
+        Rd_list = []
 
         Fe_raw_list = []
 
@@ -377,6 +380,7 @@ class RobotEnv(Env):
             Fe_raw_list.append(Fe_raw)
             Fd_list.append(0)
             pd_list.append(pd)
+            Rd_list.append(Rd)
 
             # print(reward)
 
@@ -394,7 +398,7 @@ class RobotEnv(Env):
 
             self.time_step = i
 
-        return p_list, R_list, x_tf_list, x_ti_list, Fe_list, Fd_list, pd_list, Fe_raw_list
+        return p_list, R_list, x_tf_list, x_ti_list, Fe_list, Fd_list, pd_list, Rd_list, Fe_raw_list
     
     def update_desired_trajectory(self, t = None):
         # Return pd, Rd, vd, wd, dvd, dwd
@@ -581,6 +585,8 @@ class RobotEnv(Env):
         gd_default[:3,3] = self.pd_default
         Fd_star = self.get_force_field(g, gd_default).reshape((-1,1))
 
+        # Fd_star = adjoint_g_ed_dual(g_ed) @ Fd
+
         Fe, d_Fe = self.get_FT_value(return_derivative=True)
         Fe = Fe.reshape((-1,1))
         d_Fe = d_Fe.reshape((-1,1))
@@ -601,7 +607,7 @@ class RobotEnv(Env):
             # integral action with minor loop
             F_f = - self.kp_force * (-Fe) - self.ki_force * int_force - self.kd_force * de_force + Fd_star
 
-        F_f = - self.kp_force * e_force - self.kd_force * de_force - self.ki_force * int_force + Fd_star
+        # F_f = - self.kp_force * e_force - self.kd_force * de_force - self.ki_force * int_force + Fd_star
 
         # F_f = np.clip(F_f, -30, 30)
 
@@ -741,8 +747,10 @@ class RobotEnv(Env):
         ## NOTE Currently, the dissipation term is 0
         # energy_dissipation = 0
         if self.iter % 100 == 0:
-            print(f"Sign of impedance inner product:{np.sign(inner_product_i)}, acitvation_impedance: {activation_impedance}")
-            print(f"energy_dissipation:{energy_dissipation}" )
+            # print('eg[2]', eg[2])
+            pass
+            # print(f"Sign of impedance inner product:{np.sign(inner_product_i)}, acitvation_impedance: {activation_impedance}")
+            # print(f"energy_dissipation:{energy_dissipation}" )
 
 
         dx_ti = (beta_i / self.x_ti) * (gamma_i * inner_product_i + energy_dissipation) \
@@ -796,33 +804,24 @@ class RobotEnv(Env):
 
 if __name__ == "__main__":
     robot_name = 'indy7' 
-    show_viewer = True
+    show_viewer = False
     angle = 0
     angle_rad = angle / 180 * np.pi
     randomized_start = False
     inertia_shaping = False
-    save = True
+    save = False
 
-    tracking = 'circle'  # None, 'circle', 'line'
+    tracking = 'sphere'  # None, 'circle', 'line'
 
     gic_only = False
 
-    assert tracking in [None, 'circle', 'line']
-
-    if tracking is None:
-        max_time = 6
-    elif tracking == 'line':
-        max_time = 8
-    elif tracking == 'circle':
-        max_time = 10    
-
-    max_time = 8
+    max_time = 10
 
     RE = RobotEnv(robot_name, show_viewer = show_viewer, max_time = max_time, hole_ori = 'default', 
                   testing = None, fz = 10, 
                   hole_angle = angle_rad, fix_camera = True, tracking = tracking, gic_only = gic_only, 
                   randomized_start=randomized_start, inertia_shaping = inertia_shaping)
-    p_list, R_list, x_tf_list, x_ti_list, Fe_list, Fd_list, pd_list, Fe_raw_list = RE.run()
+    p_list, R_list, x_tf_list, x_ti_list, Fe_list, Fd_list, pd_list, Rd_list, Fe_raw_list = RE.run()
 
     Ff_list = RE.Ff_list
     Vb_list = RE.Vb_list
@@ -839,6 +838,8 @@ if __name__ == "__main__":
     x_ti_arr = np.asarray(x_ti_list)
     Fe_arr = np.asarray(Fe_list)
     Fd_arr = np.asarray(Fd_list)
+
+    Rd_arr = np.asarray(Rd_list)
 
     Ff_arr = np.asarray(Ff_list)
     Vb_arr = np.asarray(Vb_list)
@@ -867,6 +868,7 @@ if __name__ == "__main__":
     data['rho_arr'] = rho_arr
     data['pd_arr'] = pd_arr
     data['Fe_raw_arr'] = Fe_raw_arr
+    data['Rd_arr'] = Rd_arr
 
     ep_list = []
 
@@ -888,7 +890,7 @@ if __name__ == "__main__":
         task_name = task_name + '_gufic'
 
     if save:
-        with open(f'data/result_{task_name}_IS_{inertia_shaping}_sphere.pkl', 'wb') as f:
+        with open(f'data/result_{task_name}_IS_{inertia_shaping}.pkl', 'wb') as f:
             pickle.dump(data, f)
 
     if show_viewer:

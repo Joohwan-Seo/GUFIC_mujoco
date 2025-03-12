@@ -194,6 +194,14 @@ class RobotEnv:
         self.data = mujoco.MjData(self.model)
         if self.show_viewer:
             self.viewer = mujoco.viewer.launch_passive(self.model, self.data)
+            if self.fix_camera:
+                self.viewer.cam.fixedcamid = 0      # Use a predefined camera from your XML (if available)
+                self.viewer.cam.trackbodyid = -1      # Disable tracking any body
+                # Alternatively, if you want to set a free camera pose manually:
+                self.viewer.cam.lookat = np.array([0.5, 0.0, 0.3])  # Center of the scene
+                self.viewer.cam.distance = 1.5                     # Distance from the lookat point
+                self.viewer.cam.azimuth = 180                       # Horizontal angle in degrees
+                self.viewer.cam.elevation = -20                    # Vertical angle in degrees
         else:
             self.viewer = None
 
@@ -264,10 +272,6 @@ class RobotEnv:
 
         if self.show_viewer:
             self.viewer.sync()
-
-        print(p_init, R_init)
-
-        quit()
 
         print('Initialization Complete')
         time.sleep(2)
@@ -371,6 +375,8 @@ class RobotEnv:
             if self.show_viewer:
                 if i % 10 == 0:
                     self.viewer.sync()
+                if i in [4000]:
+                    print('Stopping here')
 
             if i % 1000 == 0:
                 print(f"Time Step: {i}")
@@ -797,7 +803,7 @@ class RobotEnv:
 
 if __name__ == "__main__":
     robot_name = 'indy7' 
-    show_viewer = False
+    show_viewer = True
     angle = 0
     angle_rad = angle / 180 * np.pi
     randomized_start = False
@@ -819,7 +825,7 @@ if __name__ == "__main__":
 
     RE = RobotEnv(robot_name, show_viewer = show_viewer, max_time = max_time, hole_ori = 'default', 
                   testing = False, fz = 10, 
-                  hole_angle = angle_rad, fix_camera = False, tracking = tracking, gic_only = gic_only, 
+                  hole_angle = angle_rad, fix_camera = True, tracking = tracking, gic_only = gic_only, 
                   randomized_start=randomized_start, inertia_shaping = inertia_shaping)
     p_list, R_list, x_tf_list, x_ti_list, Fe_list, Fd_list, pd_list, Fe_raw_list = RE.run()
 

@@ -23,44 +23,36 @@ from gufic_env.utils.misc_func import *
 import matplotlib.pyplot as plt
 
 class RobotEnv:
-    def __init__(self, robot_name = 'indy7', max_time = 10, show_viewer = False, fz = 10,
-                 hole_ori = 'default', testing = False, 
-                 hole_angle = 0.0, fix_camera = False,
-                 tracking = None, gic_only = False, randomized_start = False,
-                 inertia_shaping = False):
+    def __init__(self, robot_name = 'indy7', max_time = 10, show_viewer = False, fz = 10, observables = None,
+                 fix_camera = False, task = "regulation", gic_only = False, randomized_start = False, inertia_shaping = False
+                 ):
         
         self.robot_name = robot_name
-        print(self.robot_name)
-        self.hole_ori = hole_ori
-        self.testing = testing 
-        self.tracking = tracking
+        self.task = task
         self.gic_only = gic_only
         self.randomized_start = randomized_start
         self.inertia_shaping = inertia_shaping
+
+        if observables is not None:
+            self.observables = observables
+        else:
+            self.observables = ['p', 'pd', 'R', 'Rd']
 
         self.fz = fz
 
         self.fix_camera = fix_camera
 
-        self.hole_angle = hole_angle
-
         print('==============================================')
         print('USING GEOMETRIC IMPEDANCE CONTROL')
         print('==============================================')
-
-        # self.pd = np.array([0.50, 0.05, 0.13])
-        self.pd = np.array([0.50, 0.00, 0.13])
-        self.Rd = np.array([[0, 1, 0],
-                            [1, 0, 0],
-                            [0, 0, -1]])
-        
-        self.pd_default = self.pd
-        self.Rd_default = self.Rd
         
         self.p_plate = np.array([0.50, 0.00, 0.11])
         self.R_plate = np.array([[0, 1, 0],
                             [1, 0, 0],
                             [0, 0, -1]])
+        
+        if self.task == 'sphere':
+            self.p_plate = np.array([0.40, 0.00, 0.0])
         
         self.z_init_offset = -0.1
 
@@ -74,79 +66,25 @@ class RobotEnv:
         self.dt = self.model.opt.timestep
         self.max_iter = int(max_time/self.dt)
 
-        self.time_step = 0
+        self.iter = 0
+
+        self.pd_t, self.Rd_t, self.dpd_t, self.dRd_t, self.ddpd_t, self.ddRd_t = initialize_trajectory(task = self.task)
 
         self.Fe = np.zeros((6,1))
         self.reset()
 
-        ## For the GIC part
-        self.Kp = np.eye(3) * np.array([1500, 1500, 500])
-        # self.Kp = np.eye(3) * np.array([1000, 1000, 50])
-
-        self.KR = np.eye(3) * np.array([1500, 1500, 1500])
-
-        self.Kd = np.eye(6) * np.array([500, 500, 500, 500, 500, 500])
-
-        self.int_sat = 50
-
-        if self.tracking is None:
-            self.Kp = np.eye(3) * np.array([1500, 1500, 100])
-            self.KR = np.eye(3) * np.array([1500, 1500, 1500])
-            self.Kd = np.eye(6) * np.array([500, 500, 500, 500, 500, 500])
-
-            # Default Value
-            self.kp_force = 1.0
-            self.kd_force = 0.0
-            self.ki_force = 4.0
-
-            self.pd = np.array([0.50, 0.00, 0.12])
-
-            # NOTE(JS) Working version of gain for the force tracking, with the 2nd order low-pass filter
-            # with cutoff 5hz of the frequency w/o inertia shaping and regular PID control with sat 50
-            # self.kp_force = 1.0
-            # self.kd_force = 0.5
-            # self.ki_force = 4.0
-
-        elif self.tracking == 'circle' or 'line':
-            # self.Kp = np.eye(3) * np.array([2500, 2500, 300])
-            self.Kp = np.eye(3) * np.array([2500, 2500, 100])
-            self.KR = np.eye(3) * np.array([2000, 2000, 2000])
-            self.Kd = np.eye(6) * np.array([500, 500, 500, 500, 500, 500])
-
-            self.kp_force = 1.0
-            self.kd_force = 0.5
-            self.ki_force = 4.0
-
-            # self.kp_force = 0.3
-            # self.kd_force = 0.25
-            # self.ki_force = 0.6
-
-            self.pd = np.array([0.50, 0.00, 0.12])
-
-        if self.gic_only == True:
-            if self.tracking is None:
-                self.Kp = np.eye(3) * np.array([1500, 1500, 800])
-            elif self.tracking == 'circle' or 'line':
-                self.Kp = np.eye(3) * np.array([2500, 2500, 800])
-            self.pd = np.array([0.50, 0.00, 0.12])
-            self.pd_default = self.pd
-
-        self.initialize_trajectory()
-
-        ####### Dummy for the printing
-        self.Ff_list = []
-        self.Vb_list = []
-        self.Ff_activation = []
-        self.rho_list = []
+        self.Kp, self.KR, self.Kd = set_gains(controller="GIC", task=self.task)
 
     def load_xml(self):
-        # dir = "/home/joohwan/deeprl/research/GIC_Learning_public/"
         dir = os.getcwd() + '/'
         if self.robot_name == 'ur5e':
             raise NotImplementedError
 
         elif self.robot_name == 'indy7':
-            model_path = dir + "gufic_env/mujoco_models/Indy7_wiping.xml"
+            if self.task == 'sphere':
+                model_path = dir + "gufic_env/mujoco_models/Indy7_wiping_sphere.xml"
+            else:
+                model_path = dir + "gufic_env/mujoco_models/Indy7_wiping.xml"
 
         elif self.robot_name == 'panda':
             raise NotImplementedError
@@ -164,48 +102,27 @@ class RobotEnv:
         else:
             self.viewer = None
 
-    def reset(self, angle_prefix = None):
-        _ = self.initial_sample()
-
+    def reset(self):
         self.iter = 0 
-        self.prev_x = np.zeros((3,))
-        self.stuck_count = 0
-        self.done_count = 0
 
-        if not self.testing:
+        pd = self.pd_t(0)
+        Rd = self.Rd_t(0)
 
-            if self.randomized_start:
-                rand_xy = 2*(np.random.rand(2,) - 0.5) * 0.05
-                rand_rpy = 2*(np.random.rand(3,) - 0.5) * 15 /180 * np.pi
-            else:
-                rand_xy = np.array([0.05, -0.05])
-                rand_rpy = np.array([15, -15, 15]) * np.pi /180
-
-            Rx = np.array([[1, 0, 0], [0, np.cos(rand_rpy[0]), -np.sin(rand_rpy[0])], [0, np.sin(rand_rpy[0]), np.cos(rand_rpy[0])]])
-            Ry = np.array([[np.cos(rand_rpy[1]), 0, np.sin(rand_rpy[1])], [0, 1, 0], [-np.sin(rand_rpy[1]), 0, np.cos(rand_rpy[1])]])
-            Rz = np.array([[np.cos(rand_rpy[2]), -np.sin(rand_rpy[2]), 0], [np.sin(rand_rpy[2]), np.cos(rand_rpy[2]), 0], [0, 0, 1]])
-
-            p_init = self.pd.reshape((-1,1)) + self.Rd @ np.array([rand_xy[0], rand_xy[1], self.z_init_offset]).reshape(-1,1)
-            R_init = self.Rd @ Rz @ Ry @ Rx
-
-            p_init = p_init.reshape((-1,))
+        if self.randomized_start:
+            rand_xy = 2*(np.random.rand(2,) - 0.5) * 0.05
+            rand_rpy = 2*(np.random.rand(3,) - 0.5) * 15 /180 * np.pi
         else:
-            if self.randomized_start:
-                rand_xy = 2*(np.random.rand(2,) - 0.5) * 0.04
-                rand_rpy = 2*(np.random.rand(3,) - 0.5) * 12 /180 * np.pi
-            else:
-                rand_xy = np.array([0.04, -0.04])
-                rand_rpy = np.array([12, -12, 12]) * np.pi /180
+            rand_xy = np.array([0.05, -0.05])
+            rand_rpy = np.array([15, -15, 15]) * np.pi /180
 
-            Rx = np.array([[1, 0, 0], [0, np.cos(rand_rpy[0]), -np.sin(rand_rpy[0])], [0, np.sin(rand_rpy[0]), np.cos(rand_rpy[0])]])
-            Ry = np.array([[np.cos(rand_rpy[1]), 0, np.sin(rand_rpy[1])], [0, 1, 0], [-np.sin(rand_rpy[1]), 0, np.cos(rand_rpy[1])]])
-            Rz = np.array([[np.cos(rand_rpy[2]), -np.sin(rand_rpy[2]), 0], [np.sin(rand_rpy[2]), np.cos(rand_rpy[2]), 0], [0, 0, 1]])
+        Rx = np.array([[1, 0, 0], [0, np.cos(rand_rpy[0]), -np.sin(rand_rpy[0])], [0, np.sin(rand_rpy[0]), np.cos(rand_rpy[0])]])
+        Ry = np.array([[np.cos(rand_rpy[1]), 0, np.sin(rand_rpy[1])], [0, 1, 0], [-np.sin(rand_rpy[1]), 0, np.cos(rand_rpy[1])]])
+        Rz = np.array([[np.cos(rand_rpy[2]), -np.sin(rand_rpy[2]), 0], [np.sin(rand_rpy[2]), np.cos(rand_rpy[2]), 0], [0, 0, 1]])
 
-            p_init = self.pd.reshape((-1,1)) + self.Rd @ np.array([rand_xy[0], rand_xy[1], self.z_init_offset]).reshape(-1,1)
-            R_init = self.Rd @ Rz @ Ry @ Rx
+        p_init = pd.reshape((-1,1)) + Rd @ np.array([rand_xy[0], rand_xy[1], self.z_init_offset]).reshape(-1,1)
+        R_init = Rd @ Rz @ Ry @ Rx
 
-            p_init = p_init.reshape((-1,))
-
+        p_init = p_init.reshape((-1,))
         
         if self.model.nv == 8:
             q0 = np.array([0, 0, -np.pi/2, 0, -np.pi/2, np.pi/2, 0, 0])
@@ -217,8 +134,6 @@ class RobotEnv:
         self.Fe = np.zeros((6,1))
 
         obs = np.zeros((6,1))
-        self.iter = 0
-        self.done_count = 0
 
         Rt = np.eye(3)
         self.set_hole_pose(self.p_plate, Rt)
@@ -228,72 +143,10 @@ class RobotEnv:
         if self.show_viewer:
             self.viewer.sync()
 
-        print(p_init)
-        print(self.pd)
-
         print('Initialization Complete')
         time.sleep(2)
 
         return obs
-
-    def initial_sample(self):
-        pd = self.pd
-        Rd = self.Rd
-        
-
-        if self.model.nv == 8:
-            q0 = np.array([0, 0, -np.pi/2, 0, -np.pi/2, np.pi/2, 0, 0])
-        elif self.model.nv == 6:
-            q0 = np.array([0, 0, -np.pi/2, 0, -np.pi/2, np.pi/2])
-
-        set_state(self.model, self.data, q0, np.zeros(self.model.nv))
-        self.robot_state.update()
-
-        p, R = self.robot_state.get_pose()
-
-        if self.show_viewer:        
-            self.viewer.sync()
-        ep = R.T @ (p - pd).reshape((-1,1))
-        eR = vee_map(Rd.T @ R - R.T @ Rd)
-
-        eg = np.vstack((ep, eR))
-
-        return eg
-    
-    def initialize_trajectory(self):
-        t = sp.symbols('t')
-        pd_default_sym = sp.Matrix(self.pd_default)
-        Rd_default_sym = sp.Matrix(self.Rd_default)
-
-        if self.tracking is not None:
-            if self.tracking == "circle":
-                r = 0.1
-                pd_t_sim = pd_default_sym + sp.Matrix([r * sp.cos(t), r * sp.sin(t), 0])
-                Rd_t_sim = Rd_default_sym
-
-            elif self.tracking == "line":
-                pd_t_sim = pd_default_sym + sp.Matrix([0, 0.05 * t, 0])
-                Rd_t_sim = Rd_default_sym
-
-        else:
-            pd_t_sim = pd_default_sym
-            Rd_t_sim = Rd_default_sym
-
-        # Differentiate with symbolic expressions
-        dpd_t_sim = sp.diff(pd_t_sim, t)
-        dRd_t_sim = sp.diff(Rd_t_sim, t)
-        ddpd_t_sim = sp.diff(dpd_t_sim, t)
-        ddRd_t_sim = sp.diff(dRd_t_sim, t)
-
-        # Convert symbolic to numpy expressions
-        self.pd_t = sp.lambdify(t, pd_t_sim, "numpy")
-        self.Rd_t = sp.lambdify(t, Rd_t_sim, "numpy")
-        self.dpd_t = sp.lambdify(t, dpd_t_sim, "numpy")
-        self.dRd_t = sp.lambdify(t, dRd_t_sim, "numpy")
-        self.ddpd_t = sp.lambdify(t, ddpd_t_sim, "numpy")
-        self.ddRd_t = sp.lambdify(t, ddRd_t_sim, "numpy")
-
-        return None
 
     def run(self):
         p_list = []
@@ -331,13 +184,11 @@ class RobotEnv:
             if done:
                 break
 
-            self.time_step = i
-
-        return p_list, R_list, x_tf_list, x_ti_list, Fe_list, Fd_list, pd_list, Fe_raw_list
+        return p_list, R_list, Fe_list, pd_list, Fe_raw_list
     
     def update_desired_trajectory(self):
         # Return pd, Rd, vd, wd, dvd, dwd
-        t = self.time_step * self.dt
+        t = self.iter * self.dt
         pd = self.pd_t(t)
         Rd = self.Rd_t(t)
 
@@ -370,7 +221,29 @@ class RobotEnv:
         if self.show_viewer:
             self.viewer.sync()
 
-        obs = np.zeros((6,1))
+        obs = {}
+        p, R = self.robot_state.get_pose()
+        pd, Rd, vd, wd, dvd, dwd = self.update_desired_trajectory()
+        pd = self.pd_t(self.iter * self.dt).reshape((-1,))
+        Rd = self.Rd_t(self.iter * self.dt)
+        # Put observables in the obs variable
+        for obs_name in self.observables:
+            if obs_name == 'p':
+                obs['p'] = p
+            elif obs_name == 'pd':
+                obs['pd'] = pd
+            elif obs_name == 'R':
+                obs['R'] = R
+            elif obs_name == 'Rd':
+                obs['Rd'] = Rd
+            elif obs_name == 'Fe':
+                obs['Fe'] = self.get_FT_value()
+            elif obs_name == 'Fe_raw':
+                obs['Fe_raw'] = self.get_FT_value_raw()
+            elif obs_name == 'Psi':
+                obs['Psi'] = 0.5 * np.linalg.norm(p - pd)**2 + np.trace(np.eye(3) - Rd.T @ R)
+            else:
+                raise ValueError('Invalid observable name')
 
         if self.iter == self.max_iter -1:
             done = True
@@ -410,7 +283,7 @@ class RobotEnv:
     def get_force_profile(self):
 
         if self.fz == "time-varying":
-            fz = 10 * (np.sin(2 * np.pi / 10 * self.time_step * self.dt) + 0.5)
+            fz = 10 * (np.sin(2 * np.pi / 10 * self.iter * self.dt) + 0.5)
         
         else:
             fz = self.fz
@@ -460,14 +333,6 @@ class RobotEnv:
         Fe = Fe.reshape((-1,1))
         d_Fe = d_Fe.reshape((-1,1))
 
-
-        F_f = np.zeros((6,1))
-
-        eg = self.get_eg(g, gd)
-
-        ep = eg[:3,0]
-        eR = eg[3:,0]
-
         Vb = self.robot_state.get_body_ee_velocity() #Shape: (6,1)
         Kd = self.Kd
 
@@ -486,9 +351,7 @@ class RobotEnv:
             tau_tilde = M_tilde @ dVd_star -Kd @ ev - fg
         # tau_tilde = M_tilde @ np.linalg.inv(M_d) @ (- Kd @ ev_mod - fg + F_f_mod + Fe_raw) - Fe_raw 
 
-        
-        # print('FT Sensor Value:', Fe.reshape((-1,)))
-
+    
         tau_cmd = Jb.T @ tau_tilde + qfrc_bias.reshape((-1,1))
 
         return tau_cmd.reshape((-1,))
@@ -499,93 +362,79 @@ class RobotEnv:
 
 if __name__ == "__main__":
     robot_name = 'indy7' 
-    show_viewer = False
-    angle = 0
-    angle_rad = angle / 180 * np.pi
+    show_viewer = True
+
     randomized_start = False
     inertia_shaping = False
     save = True
 
-    tracking = 'circle'  # None, 'circle', 'line'
+    task = 'circle'  # 'regulation', 'circle', 'line'
 
-    gic_only = True
+    assert task in ['regulation', 'circle', 'line', 'sphere']
 
-    assert tracking in [None, 'circle', 'line']
-
-    if tracking is None:
+    if task is None:
         max_time = 6
-    elif tracking == 'line':
+    elif task == 'line':
         max_time = 8
-    elif tracking == 'circle':
+    elif task == 'circle':
         max_time = 10    
 
-    RE = RobotEnv(robot_name, show_viewer = show_viewer, max_time = max_time, testing = False, fz = 10, 
-                  hole_angle = angle_rad, fix_camera = False, tracking = tracking, gic_only = gic_only, 
-                  randomized_start=randomized_start, inertia_shaping = inertia_shaping)
-    p_list, R_list, x_tf_list, x_ti_list, Fe_list, Fd_list, pd_list, Fe_raw_list = RE.run()
-
-    Ff_list = RE.Ff_list
-    Vb_list = RE.Vb_list
-    Ff_activation = RE.Ff_activation
-    rho_list = RE.rho_list
+    RE = RobotEnv(robot_name, show_viewer = show_viewer, max_time = max_time, fz = 10, 
+                  fix_camera = False, task = task,randomized_start=randomized_start, inertia_shaping = inertia_shaping)
+    p_list, R_list, Fe_list, pd_list, Fe_raw_list = RE.run()
 
 
     print('Done')
 
     p_arr = np.asarray(p_list)
     R_arr = np.asarray(R_list)
-    x_tf_arr = np.asarray(x_tf_list)
-    x_ti_arr = np.asarray(x_ti_list)
+    # x_tf_arr = np.asarray(x_tf_list)
+    # x_ti_arr = np.asarray(x_ti_list)
     Fe_arr = np.asarray(Fe_list)
-    Fd_arr = np.asarray(Fd_list)
+    # Fd_arr = np.asarray(Fd_list)
 
-    Ff_arr = np.asarray(Ff_list)
-    Vb_arr = np.asarray(Vb_list)
-    Ff_activation_arr = np.asarray(Ff_activation)
-    rho_arr = np.asarray(rho_list)
+    # Ff_arr = np.asarray(Ff_list)
+    # Vb_arr = np.asarray(Vb_list)
+    # Ff_activation_arr = np.asarray(Ff_activation)
+    # rho_arr = np.asarray(rho_list)
 
     pd_arr = np.asarray(pd_list)
 
     Fe_raw_arr = np.asarray(Fe_raw_list)
 
-    # Perform the inner_product_f value
-    # inner_product_f_arr = np.zeros((len(Vb_arr),1))
-    # for i in range(len(Vb_arr)):
-    #     inner_product_f_arr[i] = (Vb_arr[i].T @ Ff_arr[i]).reshape((-1,))[0]
 
     data = {}
     data['p_arr'] = p_arr
     data['R_arr'] = R_arr
-    data['x_tf_arr'] = x_tf_arr
-    data['x_ti_arr'] = x_ti_arr
+    # data['x_tf_arr'] = x_tf_arr
+    # data['x_ti_arr'] = x_ti_arr
     data['Fe_arr'] = Fe_arr
-    data['Fd_arr'] = Fd_arr
-    data['Ff_arr'] = Ff_arr
-    data['Vb_arr'] = Vb_arr
-    data['Ff_activation_arr'] = Ff_activation_arr
-    data['rho_arr'] = rho_arr
+    # data['Fd_arr'] = Fd_arr
+    # data['Ff_arr'] = Ff_arr
+    # data['Vb_arr'] = Vb_arr
+    # data['Ff_activation_arr'] = Ff_activation_arr
+    # data['rho_arr'] = rho_arr
     data['pd_arr'] = pd_arr
     data['Fe_raw_arr'] = Fe_raw_arr
 
-    if tracking is None:
-        task_name = 'regulation'
-    else:
-        task_name = tracking
+    task_name = task
 
-    if gic_only:
-        task_name = task_name + '_gic'
-    else:
-        task_name = task_name + '_gufic'
+
+    task_name = task_name + '_gic'
 
     if save:
         with open(f'data/result_{task_name}_IS_{inertia_shaping}.pkl', 'wb') as f:
             pickle.dump(data, f)
 
+    if show_viewer:
+        RE.viewer.close()
+
+
     # plot the force profile 
     plt.figure(1)
     plt.plot(-Fe_arr[:,2])
     plt.plot(-Fe_raw_arr[:,2])
-    plt.plot(Fd_arr[:,2])
+    # plt.plot(Fd_arr[:,2])
     plt.legend(['Fe', 'Fe_raw', 'Fd'])
     plt.ylabel('Force z direction')
     plt.xlabel('Time Step')
@@ -604,24 +453,6 @@ if __name__ == "__main__":
     plt.plot(pd_arr[:,2])
     plt.ylabel('z (m)')
     plt.xlabel('Time Step')
-
-    # plot tank values T_f = 0.5 * x_tf^2, T_i = 0.5 * x_ti^2
-    plt.figure(3)
-    plt.subplot(211)
-    plt.plot(0.5 * x_tf_arr**2)
-    plt.ylabel('Force Tank Level')
-    plt.subplot(212)
-    plt.plot(0.5 * x_ti_arr**2)
-    plt.ylabel('Impedance Tank Level')
-    plt.xlabel('Time Step')
-
-    plt.figure(4)
-    plt.plot(Ff_activation_arr)
-    plt.ylabel('Activation of Ff')
-
-    plt.figure(5)
-    plt.plot(rho_arr[:,2])
-    plt.ylabel('Rho Value')
 
     plt.show()
 

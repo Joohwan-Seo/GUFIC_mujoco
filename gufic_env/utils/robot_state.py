@@ -58,7 +58,7 @@ class RobotState:
         self.Ad_raw, self.Bd_raw = self.define_filter(50, dt)
         self.filter_state_raw = np.zeros((12,1))
 
-        print("initialization complete")
+        # print("initialization complete")
 
     def define_filter(self, cutoff, dt, dim =6):
         ws = cutoff
@@ -189,6 +189,8 @@ class RobotState:
     
     def gauss_newton_IK(self, pd, Rd, init_q, step_size = 0.4, tol = 0.001, max_cnt = 500):
         self.data.qpos = init_q
+        self.data.qvel = np.zeros(self.model.nv)
+        self.update()
         p, R = self.get_pose()
         ep = (p - pd).reshape((-1,1))
         Rd1 = Rd[:,0]; Rd2 = Rd[:,1]; Rd3 = Rd[:,2]
@@ -232,9 +234,10 @@ class RobotState:
             self.data.qpos[-2] = 0
         elif self.model.nv == 6:
             pass
-        mujoco.mj_forward(self.model, self.data) 
-        print(f"Steps: {step_cnt}, error: {np.linalg.norm(error)}")
-        print("q pos", self.data.qpos)
+        mujoco.mj_forward(self.model, self.data)
+
+        print(f"IK Finished. Steps: {step_cnt}, error: {np.linalg.norm(error)}")
+
 
     def check_joint_limits(self, q):
         """Check if the joints is under or above its limits"""

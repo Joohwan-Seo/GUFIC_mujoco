@@ -733,3 +733,9 @@ WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstabl
 Sat Mar  8 20:26:40 2025
 WARNING: mju_openResource: unknown file '/home/joohwan/research/GUFIC_mujoco/gufic_env/mujoco_models/Indy7_sphere.xml'
 
+Wed Mar 12 19:06:03 2025
+WARNING: mju_openResource: unknown file '/home/joohwan/research/GUFIC_mujoco/gufic_env/mujoco_models/Indy7_sphere.xml'
+
+Wed Mar 12 19:53:30 2025
+WARNING: mju_openResource: unknown file '/home/joohwan/research/GUFIC_mujoco/gufic_env/mujoco_models/Indy7_sphere.xml'
+

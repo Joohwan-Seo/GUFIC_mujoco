@@ -7,3 +7,4 @@ utils/__pycache__/
 *.tex
 *.pkl
 gufic_env/old_files/
+development/

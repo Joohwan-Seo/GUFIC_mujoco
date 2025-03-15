@@ -52,18 +52,6 @@ def main(task, save_figure, export_tikz):
     N = len(Fe_arr_gufic) # number of time steps
     t_arr = [i*dt for i in range(N)] 
 
-    Psi_so3_gufic = np.zeros((N,))
-    Psi_so3_gic = np.zeros((N,))
-
-    Psi_se3_gufic = np.zeros((N,))
-
-    for i in range(len(t_arr)):
-        Psi_so3_gufic[i] = np.trace(np.eye(3) - Rd_arr_gufic[i].T @ R_arr_gufic[i])
-        Psi_so3_gic[i] = np.trace(np.eye(3) - Rd_arr_gic[i].T @ R_arr_gic[i])
-
-        Psi_se3_gufic[i] = Psi_so3_gufic[i] + 0.5 * np.linalg.norm(p_arr_gufic[i] - pd_arr_gufic[i])**2
-
-
     # Downsample the data_gufic by a factor of 20
     downsample_factor = 20
     Fe_arr_gufic = Fe_arr_gufic[::downsample_factor]
@@ -79,9 +67,6 @@ def main(task, save_figure, export_tikz):
     rho_arr_gufic = rho_arr_gufic[::downsample_factor]
     Psi_arr_gufic = Psi_arr_gufic[::downsample_factor]
 
-    Psi_so3_gufic = Psi_so3_gufic[::downsample_factor]
-    Psi_se3_gufic = Psi_se3_gufic[::downsample_factor]
-
     # Downsample the data_gic by a factor of 20
     Fe_arr_gic = Fe_arr_gic[::downsample_factor]
     Fe_raw_arr_gic = Fe_raw_arr_gic[::downsample_factor]
@@ -90,8 +75,6 @@ def main(task, save_figure, export_tikz):
     pd_arr_gic = pd_arr_gic[::downsample_factor]
 
     Psi_arr_gic = Psi_arr_gic[::downsample_factor]
-
-    Psi_so3_gic = Psi_so3_gic[::downsample_factor]
 
     t_arr = t_arr[::downsample_factor]
 
@@ -145,7 +128,7 @@ def main(task, save_figure, export_tikz):
     plt.plot(t_arr,p_arr_gic[:,0], 'b--')
     plt.plot(t_arr,pd_arr_gufic[:,0], 'k:')
     plt.grid()
-    plt.legend(['GUFIC', 'GIC', 'Desired'], loc='upper right', ncols=1 if task == 'circle' else 3)
+    plt.legend(['GUFIC', 'GIC', 'Desired'], loc='upper right', ncols=3)
     plt.ylabel('$x$ (m)')
     plt.subplot(412)
     plt.plot(t_arr,p_arr_gufic[:,1], 'r')
@@ -218,4 +201,4 @@ if __name__ == "__main__":
 
     # tasks = ['sphere']
     for task in tasks:
-        main(task = task, save_figure = False, export_tikz = True)
+        main(task = task, save_figure = False, export_tikz = False)

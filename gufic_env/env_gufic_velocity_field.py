@@ -1,7 +1,4 @@
-from gym import Env
-from gym import spaces
-
-# import mujoco_py
+# import mujoco
 import mujoco
 import mujoco.viewer
 import numpy as np
@@ -12,8 +9,6 @@ from scipy.linalg import expm
 import time, csv, os, copy
 
 import pickle
-
-from gym import utils
 
 # import matplotlib.pyplot as plt
 from gufic_env.utils.robot_state import RobotState

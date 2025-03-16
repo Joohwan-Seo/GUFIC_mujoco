@@ -8,7 +8,7 @@ def main(control_method = 'gufic', task = 'circle', show_viewer = False):
     robot_name = 'indy7' 
     randomized_start = False
     inertia_shaping = False
-    save = True
+    save = False
 
     assert control_method in ['gufic', 'gic']
     assert task in ['regulation', 'circle', 'line', 'sphere']

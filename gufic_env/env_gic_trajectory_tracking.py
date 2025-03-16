@@ -1,6 +1,3 @@
-from gym import Env
-from gym import spaces
-
 # import mujoco_py
 import mujoco
 import mujoco.viewer
@@ -11,14 +8,10 @@ import time, csv, os, copy
 
 import pickle
 
-from gym import utils
-
 # import matplotlib.pyplot as plt
 from gufic_env.utils.robot_state import RobotState
 from gufic_env.utils.mujoco import set_state, set_body_pose_rotm
 from gufic_env.utils.misc_func import *
-
-
 
 import matplotlib.pyplot as plt
 

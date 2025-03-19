@@ -6,5 +6,6 @@ utils/__pycache__/
 *.png
 *.tex
 *.pkl
-gufic_env/old_files/
 development/
+gufic_env/Testing_files/
+MUJOCO_LOG.TXT

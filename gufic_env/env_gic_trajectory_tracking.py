@@ -356,10 +356,8 @@ class RobotEnv:
 if __name__ == "__main__":
     robot_name = 'indy7' 
     show_viewer = True
-
     randomized_start = False
     inertia_shaping = False
-    save = True
 
     task = 'circle'  # 'regulation', 'circle', 'line'
 
@@ -374,81 +372,10 @@ if __name__ == "__main__":
 
     RE = RobotEnv(robot_name, show_viewer = show_viewer, max_time = max_time, fz = 10, 
                   fix_camera = False, task = task,randomized_start=randomized_start, inertia_shaping = inertia_shaping)
-    p_list, R_list, Fe_list, pd_list, Fe_raw_list = RE.run()
-
-
-    print('Done')
-
-    p_arr = np.asarray(p_list)
-    R_arr = np.asarray(R_list)
-    # x_tf_arr = np.asarray(x_tf_list)
-    # x_ti_arr = np.asarray(x_ti_list)
-    Fe_arr = np.asarray(Fe_list)
-    # Fd_arr = np.asarray(Fd_list)
-
-    # Ff_arr = np.asarray(Ff_list)
-    # Vb_arr = np.asarray(Vb_list)
-    # Ff_activation_arr = np.asarray(Ff_activation)
-    # rho_arr = np.asarray(rho_list)
-
-    pd_arr = np.asarray(pd_list)
-
-    Fe_raw_arr = np.asarray(Fe_raw_list)
-
-
-    data = {}
-    data['p_arr'] = p_arr
-    data['R_arr'] = R_arr
-    # data['x_tf_arr'] = x_tf_arr
-    # data['x_ti_arr'] = x_ti_arr
-    data['Fe_arr'] = Fe_arr
-    # data['Fd_arr'] = Fd_arr
-    # data['Ff_arr'] = Ff_arr
-    # data['Vb_arr'] = Vb_arr
-    # data['Ff_activation_arr'] = Ff_activation_arr
-    # data['rho_arr'] = rho_arr
-    data['pd_arr'] = pd_arr
-    data['Fe_raw_arr'] = Fe_raw_arr
-
-    task_name = task
-
-
-    task_name = task_name + '_gic'
-
-    if save:
-        with open(f'data/result_{task_name}_IS_{inertia_shaping}.pkl', 'wb') as f:
-            pickle.dump(data, f)
+    RE.run()
 
     if show_viewer:
         RE.viewer.close()
-
-
-    # plot the force profile 
-    plt.figure(1)
-    plt.plot(-Fe_arr[:,2])
-    plt.plot(-Fe_raw_arr[:,2])
-    # plt.plot(Fd_arr[:,2])
-    plt.legend(['Fe', 'Fe_raw', 'Fd'])
-    plt.ylabel('Force z direction')
-    plt.xlabel('Time Step')
-
-    plt.figure(2)
-    plt.subplot(311)
-    plt.plot(p_arr[:,0])
-    plt.plot(pd_arr[:,0])
-    plt.ylabel('x (m)')
-    plt.subplot(312)
-    plt.plot(p_arr[:,1])
-    plt.plot(pd_arr[:,1])
-    plt.ylabel('y (m)')
-    plt.subplot(313)
-    plt.plot(p_arr[:,2])
-    plt.plot(pd_arr[:,2])
-    plt.ylabel('z (m)')
-    plt.xlabel('Time Step')
-
-    plt.show()
-
 
 
 

@@ -13,9 +13,6 @@ Submitted to CDC 2025 as
 python == 3.10.16, scipy == 1.15.2, mujoco == 3.3.0
 ```
 
-Tex Exporter does not work that well, go to tikzplotlib github and search for the issues.
-You need to modify the source code, or download the forked version and install from source. 
-
 ## Usage
 ### Directly running the environment files:
 GUFIC
@@ -35,3 +32,6 @@ For the visualization:
 ```source
 python scripts/data_exporter_tikz.py
 ```
+
+**NOTE**
+For the ``data_exporter_tikz.py``, use ``export_tikz = False`` as the default tikz exporter is not working. Tikz exporter is not compatible with the current matplotlib version, so it needs to be updated. Go to the source ``tikzplotlib`` github and search for the issues. You may need to modify the source code, or download the modified branch and install from the source. 

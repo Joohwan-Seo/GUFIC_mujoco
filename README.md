@@ -35,3 +35,14 @@ python scripts/data_exporter_tikz.py
 
 **NOTE**
 For the ``data_exporter_tikz.py``, use ``export_tikz = False`` as the default tikz exporter is not working. Tikz exporter is not compatible with the current matplotlib version, so it needs to be updated. Go to the source ``tikzplotlib`` github and search for the issues. You may need to modify the source code, or download the modified branch and install from the source. 
+
+
+### Citation:
+```source
+@article{seo2025geometric,
+  title={Geometric Formulation of Unified Force-Impedance Control on SE (3) for Robotic Manipulators},
+  author={Seo, Joohwan and Prakash, Nikhil Potu Surya and Lee, Soomi and Kruthiventy, Arvind and Teng, Megan and Choi, Jongeun and Horowitz, Roberto},
+  journal={arXiv preprint arXiv:2504.17080},
+  year={2025}
+}
+```

@@ -4,7 +4,7 @@ Mujoco Implementation of Geometric Unified Force Impedance Control
 
 Author: Joohwan Seo (Ph.D. Candidate UC Berkeley, Mechanical Engineering)
 
-Submitted to CDC 2025 as
+Implementation of the paper titled as:
 
 "Geometric Formulation of Unified Force-Impedance Control on SE(3) For Robotic Manipulator"
 

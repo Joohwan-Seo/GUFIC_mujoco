@@ -13,6 +13,13 @@ Implementation of the paper titled as:
 python == 3.10.16, scipy == 1.15.2, mujoco == 3.3.0
 ```
 
+## Install
+### Safely imports gufic_env
+```
+pip install control
+pip install -e .
+```
+
 ## Usage
 ### Directly running the environment files:
 GUFIC

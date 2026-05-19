@@ -102,6 +102,9 @@ class RobotEnv:
         self.d_max = 0.03
         self.eR_norm_max = 0.05
 
+        self.use_exponential_gate = True
+        self.force_int_gate_sigma = 5.0
+
         ####### Dummy for the printing
         self.Ff_list = []
         self.Vb_list = []
@@ -399,6 +402,11 @@ class RobotEnv:
         Fd = np.array([0, 0, fz, 0, 0, 0])
         return Fd
 
+    def get_force_integral_gate(self, e_force):
+        Fe_norm = np.linalg.norm(e_force)
+        sigma = self.force_int_gate_sigma
+        return np.exp(-(Fe_norm / sigma)**2)
+
 
     def geometric_unified_force_impedance_control(self):
         Jb = self.robot_state.get_body_jacobian()
@@ -441,7 +449,7 @@ class RobotEnv:
         gd_bar = np.eye(4)
         t = self.iter * self.dt
         gd_bar[:3,:3] = self.Rd_t(t)
-        gd_bar[:3,3] = self.pd_t(t).reshape((-1,))
+        gd_bar[:3,3] = self.pd_t(t).reshape((-1,))-
         Fd_star = self.get_force_field(g, gd_bar).reshape((-1,1))
 
         Fe, d_Fe = self.get_FT_value(return_derivative=True)
@@ -453,7 +461,11 @@ class RobotEnv:
 
         e_force = -Fe - Fd_star
         de_force = -d_Fe
-        int_force = self.int_force_prev + e_force * self.dt
+        if self.use_exponential_gate:
+            force_int_gate = self.get_force_integral_gate(e_force)
+        else:
+            force_int_gate = 1.0
+        int_force = self.int_force_prev + e_force * force_int_gate * self.dt
 
 
         int_force = np.clip(int_force, -self.int_sat, self.int_sat)
@@ -463,6 +475,9 @@ class RobotEnv:
         else: # Integral action with minor loop
             F_f = - self.kp_force * (-Fe) - self.ki_force * int_force - self.kd_force * de_force + Fd_star
 
+        # F_f = - self.kp_force * e_force - self.kd_force * de_force - self.ki_force * int_force + Fd_star
+
+        
         #2.5 Apply shaping function to the force control input
         f_d = Fd_star[:3].reshape((-1,))
         m_d = Fd_star[3:].reshape((-1,))
@@ -620,11 +635,11 @@ class RobotEnv:
 
 if __name__ == "__main__":
     robot_name = 'indy7' 
-    show_viewer = True
+    show_viewer = False
     randomized_start = False
     inertia_shaping = False
 
-    task = 'sphere'  # "regulation", 'circle', 'line'
+    task = 'circle'  # "regulation", 'circle', 'line'
 
     assert task in ['regulation', 'circle', 'line', 'sphere']
 
@@ -643,7 +658,4 @@ if __name__ == "__main__":
 
     if show_viewer:
         RE.viewer.close()
-
-
-
 

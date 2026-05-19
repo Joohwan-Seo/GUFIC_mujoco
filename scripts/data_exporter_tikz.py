@@ -1,9 +1,33 @@
 import pickle
 import matplotlib.pyplot as plt
-import tikzplotlib # Updated version of mine
+try:
+    import tikzplotlib # Updated version of mine
+except ImportError:
+    tikzplotlib = None
 
 import os
 import numpy as np
+
+def vector_rmse(err_arr):
+    err_arr = np.asarray(err_arr)
+    return np.sqrt(np.mean(np.sum(err_arr**2, axis=1)))
+
+def rotation_trace_rmse(R_arr, Rd_arr):
+    rot_trace_err = 3.0 - np.einsum('nij,nij->n', Rd_arr, R_arr)
+    return np.sqrt(np.mean(rot_trace_err**2))
+
+def print_tracking_rmse(task, controller, p_arr, pd_arr, R_arr, Rd_arr, Fe_arr, Fd_arr):
+    Fe_arr = np.squeeze(Fe_arr)
+    Fd_arr = np.squeeze(Fd_arr)
+
+    p_rmse = vector_rmse(p_arr - pd_arr)
+    rot_rmse = rotation_trace_rmse(R_arr, Rd_arr)
+    force_rmse = vector_rmse(-Fe_arr[:, :3] - Fd_arr[:, :3])
+
+    print(f"[{task}] {controller} RMSE")
+    print(f"  position ||p - p_d||: {p_rmse:.6f} m")
+    print(f"  rotation trace(I - R_d^T R): {rot_rmse:.6f}")
+    print(f"  force ||F - F_d||: {force_rmse:.6f} N")
 
 def main(task, save_figure, export_tikz):
 
@@ -47,6 +71,15 @@ def main(task, save_figure, export_tikz):
     R_arr_gic = data_gic['R']
     Rd_arr_gic = data_gic['Rd']
     Psi_arr_gic = data_gic['Psi']
+
+    print_tracking_rmse(
+        task, 'GUFIC', p_arr_gufic, pd_arr_gufic, R_arr_gufic,
+        Rd_arr_gufic, Fe_arr_gufic, Fd_arr_gufic
+    )
+    print_tracking_rmse(
+        task, 'GIC', p_arr_gic, pd_arr_gic, R_arr_gic,
+        Rd_arr_gic, Fe_arr_gic, Fd_arr_gufic
+    )
 
     # make time array
     N = len(Fe_arr_gufic) # number of time steps
@@ -93,6 +126,8 @@ def main(task, save_figure, export_tikz):
         plt.savefig(f"data/{task}_force_z.png")
 
     if export_tikz:
+        if tikzplotlib is None:
+            raise ImportError("tikzplotlib is required when export_tikz=True")
         tikzplotlib.save(f"data/{task}_force_z.tex")
 
     plt.figure(2, figsize = (6,4.5))
@@ -120,6 +155,8 @@ def main(task, save_figure, export_tikz):
     if save_figure:
         plt.savefig(f"data/{task}_xyz.png")
     if export_tikz:
+        if tikzplotlib is None:
+            raise ImportError("tikzplotlib is required when export_tikz=True")
         tikzplotlib.save(f"data/{task}_xyz.tex")
 
     plt.figure(3, figsize = (6,6))
@@ -153,6 +190,8 @@ def main(task, save_figure, export_tikz):
     if save_figure:
         plt.savefig(f"data/{task}_xyz_force.png")
     if export_tikz:
+        if tikzplotlib is None:
+            raise ImportError("tikzplotlib is required when export_tikz=True")
         tikzplotlib.save(f"data/{task}_xyz_force.tex")
 
     # plot tank values T_f = 0.5 * x_tf^2, T_i = 0.5 * x_ti^2
@@ -170,6 +209,8 @@ def main(task, save_figure, export_tikz):
     if save_figure:
         plt.savefig(f"data/{task}_gufic_tank.png")
     if export_tikz:
+        if tikzplotlib is None:
+            raise ImportError("tikzplotlib is required when export_tikz=True")
         tikzplotlib.save(f"data/{task}_gufic_tank.tex")
 
     plt.figure(5, figsize = (6,4.5))
@@ -183,6 +224,8 @@ def main(task, save_figure, export_tikz):
     if save_figure:
         plt.savefig(f"data/{task}_Psi.png")
     if export_tikz:
+        if tikzplotlib is None:
+            raise ImportError("tikzplotlib is required when export_tikz=True")
         tikzplotlib.save(f"data/{task}_Psi.tex")
 
     # plt.figure(6)
@@ -197,8 +240,10 @@ def main(task, save_figure, export_tikz):
 
 if __name__ == "__main__":
     task = "sphere" # 'regulation', 'line', 'circle', 'sphere'
-    tasks = ['regulation', 'line', 'circle', 'sphere']
+    # tasks = ['regulation', 'line', 'circle', 'sphere']
 
-    # tasks = ['sphere']
+    tasks = ['circle', 'sphere']
+
+    # tasks = ['circle']
     for task in tasks:
-        main(task = task, save_figure = False, export_tikz = False)
+        main(task = task, save_figure = False, export_tikz = True)
